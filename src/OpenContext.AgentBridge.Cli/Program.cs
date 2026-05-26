@@ -696,18 +696,30 @@ internal static class ProgramMain
         Console.WriteLine($"Turns: {result.Turns}");
         Console.WriteLine($"Stopped because: {result.StoppedBecause}");
         Console.WriteLine($"Tool calls: {result.ToolCalls.Count} ({succeeded} ok, {failed} failed)");
+        WriteToolBreakdown(result.ToolCalls);
 
         var commands = result.ToolCalls
             .Where(toolCall => string.Equals(toolCall.ToolName, "run_command", StringComparison.OrdinalIgnoreCase))
-            .Select(toolCall => SummarizeArguments(toolCall.ToolName, toolCall.ArgumentsJson))
-            .Where(summary => !string.IsNullOrWhiteSpace(summary))
+            .Select(CreateCommandSummary)
             .ToArray();
         if (commands.Length > 0)
         {
             Console.WriteLine("Commands run:");
             foreach (var command in commands)
             {
-                Console.WriteLine($"  {command}");
+                Console.WriteLine($"  {command.Status} {command.Command}");
+            }
+
+            var validationCommands = commands
+                .Where(command => command.IsValidation)
+                .ToArray();
+            if (validationCommands.Length > 0)
+            {
+                Console.WriteLine("Validation:");
+                foreach (var command in validationCommands)
+                {
+                    Console.WriteLine($"  {command.Status} {command.Command}");
+                }
             }
         }
 
@@ -724,6 +736,79 @@ internal static class ProgramMain
                 Console.WriteLine($"  {line}");
             }
         }
+        else if (gitStatus.ExitCode == 0)
+        {
+            Console.WriteLine("Changed files: none");
+        }
+    }
+
+    private static void WriteToolBreakdown(IReadOnlyList<ToolCallRecord> toolCalls)
+    {
+        if (toolCalls.Count == 0)
+        {
+            return;
+        }
+
+        Console.WriteLine("Tool breakdown:");
+        foreach (var group in toolCalls
+                     .GroupBy(toolCall => toolCall.ToolName, StringComparer.OrdinalIgnoreCase)
+                     .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase))
+        {
+            var ok = group.Count(toolCall => toolCall.IsSuccess);
+            var failed = group.Count() - ok;
+            Console.WriteLine($"  {group.Key}: {group.Count()} ({ok} ok, {failed} failed)");
+        }
+    }
+
+    private static CommandSummary CreateCommandSummary(ToolCallRecord toolCall)
+    {
+        var command = SummarizeArguments(toolCall.ToolName, toolCall.ArgumentsJson);
+        var exitCode = ExtractExitCode(toolCall.ResultContent);
+        var status = toolCall.IsSuccess
+            ? "[ok]"
+            : "[failed]";
+
+        if (exitCode is not null)
+        {
+            status += $" exit {exitCode}";
+        }
+
+        return new CommandSummary(
+            command,
+            status,
+            IsValidationCommand(command));
+    }
+
+    private static int? ExtractExitCode(string content)
+    {
+        using var reader = new StringReader(content);
+        while (reader.ReadLine() is { } line)
+        {
+            if (line.StartsWith("Exit code:", StringComparison.OrdinalIgnoreCase)
+                && int.TryParse(line["Exit code:".Length..].Trim(), out var exitCode))
+            {
+                return exitCode;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool IsValidationCommand(string command)
+    {
+        var normalized = command.ToLowerInvariant();
+        string[] indicators =
+        {
+            "dotnet test",
+            "dotnet build",
+            "dotnet run",
+            "invoke-pester",
+            "invoke-scriptanalyzer",
+            "pwsh ",
+            "powershell "
+        };
+
+        return indicators.Any(normalized.Contains);
     }
 
     private static int UnknownCommand(string command)
@@ -914,6 +999,11 @@ internal static class ProgramMain
             ? preview
             : preview[..maxCharacters] + "...";
     }
+
+    private sealed record CommandSummary(
+        string Command,
+        string Status,
+        bool IsValidation);
 
     private sealed record CommandOptions(
         string[] Positionals,

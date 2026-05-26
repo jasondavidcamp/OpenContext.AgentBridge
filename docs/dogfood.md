@@ -37,4 +37,4 @@ dotnet run --project src\OpenContext.AgentBridge.Cli -- ask examples\powershell-
 - If the model drifts into prose, AgentBridge should emit an invalid-response message and ask for a corrected JSON action.
 - Tool calls should stay inside `examples/sandbox-project`.
 - Free Gemini can hit short request-per-minute limits during multi-turn edits. The OpenAI-compatible provider retries `429` and `503` responses when the gateway returns retry timing.
-- The final answer should mention what was inspected or changed and any validation command result.
+- The final answer and run summary should mention what was inspected or changed, command success, validation command results, and changed files.
