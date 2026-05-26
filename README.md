@@ -20,6 +20,8 @@ This repository is starting fresh as the next iteration of the OpenContext orche
 
 ## Getting Started
 
+Prerequisite: .NET 10 SDK.
+
 Build and test:
 
 ```powershell

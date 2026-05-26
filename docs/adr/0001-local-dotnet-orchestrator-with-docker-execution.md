@@ -12,9 +12,9 @@ The target environment is Windows-heavy and enterprise/government constrained. D
 
 ## Decision
 
-Start with a .NET CLI and core library running on the host. Model integration, command execution, storage, and skills are explicit boundaries:
+Start with a .NET 10 CLI and core library running on the host. Model integration, command execution, storage, and skills are explicit boundaries:
 
-- .NET CLI for Windows-friendly distribution and enterprise fit
+- .NET 10 CLI for Windows-friendly distribution and enterprise fit
 - Workspace-scoped guardrails in the core library
 - Host command execution first
 - Docker command execution as a pluggable executor
