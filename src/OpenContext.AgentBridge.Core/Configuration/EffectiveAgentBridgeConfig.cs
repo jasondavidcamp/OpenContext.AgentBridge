@@ -5,9 +5,19 @@ public sealed record EffectiveAgentBridgeConfig(
     string DefaultExecutor,
     int MaxIterations,
     bool LogModelTraffic,
-    EffectiveGeminiConfig Gemini);
+    EffectiveGeminiConfig Gemini,
+    EffectiveOpenAiCompatibleConfig OpenAiCompatible);
 
 public sealed record EffectiveGeminiConfig(
     string Model,
     string? Endpoint,
     string? ApiKey);
+
+public sealed record EffectiveOpenAiCompatibleConfig(
+    string Model,
+    string? Endpoint,
+    string? ApiKey,
+    string ApiKeyHeader,
+    string? ApiKeyPrefix,
+    float? Temperature,
+    int? MaxTokens);

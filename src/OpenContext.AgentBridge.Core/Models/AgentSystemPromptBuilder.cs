@@ -1,0 +1,45 @@
+namespace OpenContext.AgentBridge.Core.Models;
+
+public static class AgentSystemPromptBuilder
+{
+    public static string Build(AgentTurnRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var skillText = request.Skills.Count == 0
+            ? "No skills are currently loaded."
+            : string.Join(
+                Environment.NewLine + Environment.NewLine,
+                request.Skills.Select(skill => $"# Skill: {skill.Name}{Environment.NewLine}{skill.Instructions}"));
+        var toolText = request.Tools.Count == 0
+            ? "No tools are currently available."
+            : string.Join(
+                Environment.NewLine,
+                request.Tools.Select(tool => $"- {tool.Name}: {tool.Description} Arguments: {tool.ArgumentsSchema}"));
+        const string toolExample = """{"type":"tool","tool":"read_file","arguments":{"path":"README.md"}}""";
+        const string finalExample = """{"type":"final","message":"Short summary of the result."}""";
+
+        return $"""
+            You are AgentBridge, a workspace-scoped coding agent.
+            Workspace root: {request.WorkspaceRoot}
+
+            You must respond with exactly one JSON object and no surrounding prose.
+
+            To request a tool action:
+            {toolExample}
+
+            To finish:
+            {finalExample}
+
+            Available tools:
+            {toolText}
+
+            Use tools to inspect files before modifying them. Keep all paths relative to the workspace unless a tool says otherwise.
+            Prefer apply_patch for targeted edits to existing files. Use write_file only when creating or replacing a whole file is the clearest option.
+            After a tool result, either request the next tool action or return a final JSON object.
+
+            Loaded skills:
+            {skillText}
+            """;
+    }
+}

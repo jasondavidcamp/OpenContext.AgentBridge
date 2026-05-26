@@ -10,6 +10,9 @@ public static class AgentBridgeDefaults
     public const string DefaultDockerImage = "opencontext-agentbridge-tools:latest";
     public const string DefaultModelProvider = "gemini";
     public const string DefaultGeminiModel = "gemini-1.5-pro";
+    public const string DefaultOpenAiCompatibleModel = "gpt-4";
+    public const string DefaultOpenAiCompatibleApiKeyHeader = "Authorization";
+    public const string DefaultOpenAiCompatibleApiKeyPrefix = "Bearer";
     public const string DefaultExecutor = "host";
     public const int DefaultMaxIterations = 8;
 }

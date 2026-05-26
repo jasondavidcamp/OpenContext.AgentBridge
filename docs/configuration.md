@@ -39,6 +39,15 @@ Effective configuration is resolved in this order:
     "model": "gemini-1.5-pro",
     "endpoint": null,
     "apiKey": null
+  },
+  "openAiCompatible": {
+    "model": "gpt-4",
+    "endpoint": null,
+    "apiKey": null,
+    "apiKeyHeader": "Authorization",
+    "apiKeyPrefix": "Bearer",
+    "temperature": null,
+    "maxTokens": null
   }
 }
 ```
@@ -51,7 +60,38 @@ $env:AGENTBRIDGE_GEMINI_ENDPOINT = "<endpoint>"
 $env:AGENTBRIDGE_GEMINI_MODEL = "<model>"
 ```
 
+For STARK or another OpenAI-compatible gateway:
+
+```powershell
+$env:AGENTBRIDGE_MODEL_PROVIDER = "stark"
+$env:AGENTBRIDGE_STARK_ENDPOINT = "https://stark.example.mil/v1"
+$env:AGENTBRIDGE_STARK_MODEL = "<model-id-from-v1-models>"
+$env:AGENTBRIDGE_STARK_API_KEY = "<key>"
+```
+
+If the gateway expects a custom API key header instead of `Authorization: Bearer <key>`:
+
+```powershell
+$env:AGENTBRIDGE_STARK_API_KEY_HEADER = "X-STARK-Key"
+$env:AGENTBRIDGE_STARK_API_KEY_PREFIX = ""
+```
+
+The generic names also work:
+
+```powershell
+$env:AGENTBRIDGE_MODEL_PROVIDER = "openai-compatible"
+$env:AGENTBRIDGE_OPENAI_ENDPOINT = "<base-url-or-full-chat-completions-url>"
+$env:AGENTBRIDGE_OPENAI_MODEL = "<model>"
+$env:AGENTBRIDGE_OPENAI_API_KEY = "<key>"
+```
+
 ## Model Diagnostics
+
+List STARK/OpenAI-compatible models:
+
+```powershell
+dotnet run --project src/OpenContext.AgentBridge.Cli -- models list . --provider stark --endpoint "<endpoint>" --api-key "<key>"
+```
 
 Test the configured model endpoint:
 
@@ -63,6 +103,12 @@ Override endpoint or model for one test:
 
 ```powershell
 dotnet run --project src/OpenContext.AgentBridge.Cli -- models test . --endpoint "<endpoint>" --model "<model>"
+```
+
+Test STARK without changing workspace config:
+
+```powershell
+dotnet run --project src/OpenContext.AgentBridge.Cli -- models test . --provider stark --endpoint "<endpoint>" --model "<model>" --api-key "<key>"
 ```
 
 Enable request and response logging for one test:

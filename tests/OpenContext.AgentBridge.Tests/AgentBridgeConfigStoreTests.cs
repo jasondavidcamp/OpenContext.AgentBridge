@@ -28,6 +28,16 @@ public sealed class AgentBridgeConfigStoreTests
                         Model = "gemini-test",
                         Endpoint = "https://example.test/gemini",
                         ApiKey = "file-key"
+                    },
+                    OpenAiCompatible = new OpenAiCompatibleConfig
+                    {
+                        Model = "stark-model",
+                        Endpoint = "https://stark.test/v1",
+                        ApiKey = "stark-file-key",
+                        ApiKeyHeader = "X-STARK-Key",
+                        ApiKeyPrefix = string.Empty,
+                        Temperature = 0.1f,
+                        MaxTokens = 1_000
                     }
                 });
 
@@ -39,6 +49,13 @@ public sealed class AgentBridgeConfigStoreTests
             Assert.Equal("gemini-test", config.Gemini.Model);
             Assert.Equal("https://example.test/gemini", config.Gemini.Endpoint);
             Assert.Equal("file-key", config.Gemini.ApiKey);
+            Assert.Equal("stark-model", config.OpenAiCompatible.Model);
+            Assert.Equal("https://stark.test/v1", config.OpenAiCompatible.Endpoint);
+            Assert.Equal("stark-file-key", config.OpenAiCompatible.ApiKey);
+            Assert.Equal("X-STARK-Key", config.OpenAiCompatible.ApiKeyHeader);
+            Assert.Equal(string.Empty, config.OpenAiCompatible.ApiKeyPrefix);
+            Assert.Equal(0.1f, config.OpenAiCompatible.Temperature);
+            Assert.Equal(1_000, config.OpenAiCompatible.MaxTokens);
         }
         finally
         {
@@ -55,6 +72,8 @@ public sealed class AgentBridgeConfigStoreTests
         try
         {
             Environment.SetEnvironmentVariable("AGENTBRIDGE_GEMINI_MODEL", "env-model");
+            Environment.SetEnvironmentVariable("AGENTBRIDGE_STARK_MODEL", "env-stark-model");
+            Environment.SetEnvironmentVariable("AGENTBRIDGE_STARK_ENDPOINT", "https://stark-env.test/v1");
             Environment.SetEnvironmentVariable("AGENTBRIDGE_DEFAULT_EXECUTOR", "docker");
 
             var workspace = WorkspaceContext.FromPath(root);
@@ -72,10 +91,16 @@ public sealed class AgentBridgeConfigStoreTests
 
             var config = await store.ReadEffectiveAsync(
                 workspace,
-                new AgentBridgeConfigOverrides(DefaultExecutor: "host", GeminiModel: "override-model"));
+                new AgentBridgeConfigOverrides(
+                    DefaultExecutor: "host",
+                    GeminiModel: "override-model",
+                    OpenAiCompatibleApiKey: "override-stark-key"));
 
             Assert.Equal("host", config.DefaultExecutor);
             Assert.Equal("override-model", config.Gemini.Model);
+            Assert.Equal("env-stark-model", config.OpenAiCompatible.Model);
+            Assert.Equal("https://stark-env.test/v1", config.OpenAiCompatible.Endpoint);
+            Assert.Equal("override-stark-key", config.OpenAiCompatible.ApiKey);
         }
         finally
         {
@@ -101,7 +126,21 @@ public sealed class AgentBridgeConfigStoreTests
             "AGENTBRIDGE_LOG_MODEL_TRAFFIC",
             "AGENTBRIDGE_GEMINI_MODEL",
             "AGENTBRIDGE_GEMINI_ENDPOINT",
-            "AGENTBRIDGE_GEMINI_API_KEY"
+            "AGENTBRIDGE_GEMINI_API_KEY",
+            "AGENTBRIDGE_OPENAI_MODEL",
+            "AGENTBRIDGE_OPENAI_ENDPOINT",
+            "AGENTBRIDGE_OPENAI_API_KEY",
+            "AGENTBRIDGE_OPENAI_API_KEY_HEADER",
+            "AGENTBRIDGE_OPENAI_API_KEY_PREFIX",
+            "AGENTBRIDGE_OPENAI_TEMPERATURE",
+            "AGENTBRIDGE_OPENAI_MAX_TOKENS",
+            "AGENTBRIDGE_STARK_MODEL",
+            "AGENTBRIDGE_STARK_ENDPOINT",
+            "AGENTBRIDGE_STARK_API_KEY",
+            "AGENTBRIDGE_STARK_API_KEY_HEADER",
+            "AGENTBRIDGE_STARK_API_KEY_PREFIX",
+            "AGENTBRIDGE_STARK_TEMPERATURE",
+            "AGENTBRIDGE_STARK_MAX_TOKENS"
         };
 
         private readonly Dictionary<string, string?> _previous;

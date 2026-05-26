@@ -70,9 +70,11 @@ public sealed class AgentBridgeConfigStore
         var config = await ReadAsync(workspace, cancellationToken).ConfigureAwait(false);
         overrides ??= new AgentBridgeConfigOverrides();
         var gemini = config.Gemini ?? new GeminiConfig();
+        var openAiCompatible = config.OpenAiCompatible ?? new OpenAiCompatibleConfig();
 
         return new EffectiveAgentBridgeConfig(
             FirstNonBlank(
+                overrides.ModelProvider,
                 Environment.GetEnvironmentVariable("AGENTBRIDGE_MODEL_PROVIDER"),
                 config.ModelProvider,
                 AgentBridgeDefaults.DefaultModelProvider),
@@ -105,7 +107,44 @@ public sealed class AgentBridgeConfigStore
                 FirstNonBlankOrNull(
                     overrides.GeminiApiKey,
                     Environment.GetEnvironmentVariable("AGENTBRIDGE_GEMINI_API_KEY"),
-                    gemini.ApiKey)));
+                    gemini.ApiKey)),
+            new EffectiveOpenAiCompatibleConfig(
+                FirstNonBlank(
+                    overrides.OpenAiCompatibleModel,
+                    Environment.GetEnvironmentVariable("AGENTBRIDGE_OPENAI_MODEL"),
+                    Environment.GetEnvironmentVariable("AGENTBRIDGE_STARK_MODEL"),
+                    openAiCompatible.Model,
+                    AgentBridgeDefaults.DefaultOpenAiCompatibleModel),
+                FirstNonBlankOrNull(
+                    overrides.OpenAiCompatibleEndpoint,
+                    Environment.GetEnvironmentVariable("AGENTBRIDGE_OPENAI_ENDPOINT"),
+                    Environment.GetEnvironmentVariable("AGENTBRIDGE_STARK_ENDPOINT"),
+                    openAiCompatible.Endpoint),
+                FirstNonBlankOrNull(
+                    overrides.OpenAiCompatibleApiKey,
+                    Environment.GetEnvironmentVariable("AGENTBRIDGE_OPENAI_API_KEY"),
+                    Environment.GetEnvironmentVariable("AGENTBRIDGE_STARK_API_KEY"),
+                    openAiCompatible.ApiKey),
+                FirstNonBlank(
+                    overrides.OpenAiCompatibleApiKeyHeader,
+                    Environment.GetEnvironmentVariable("AGENTBRIDGE_OPENAI_API_KEY_HEADER"),
+                    Environment.GetEnvironmentVariable("AGENTBRIDGE_STARK_API_KEY_HEADER"),
+                    openAiCompatible.ApiKeyHeader,
+                    AgentBridgeDefaults.DefaultOpenAiCompatibleApiKeyHeader),
+                FirstValueOrDefault(
+                    AgentBridgeDefaults.DefaultOpenAiCompatibleApiKeyPrefix,
+                    overrides.OpenAiCompatibleApiKeyPrefix,
+                    Environment.GetEnvironmentVariable("AGENTBRIDGE_OPENAI_API_KEY_PREFIX"),
+                    Environment.GetEnvironmentVariable("AGENTBRIDGE_STARK_API_KEY_PREFIX"),
+                    openAiCompatible.ApiKeyPrefix),
+                FirstFloatOrNull(
+                    Environment.GetEnvironmentVariable("AGENTBRIDGE_OPENAI_TEMPERATURE"),
+                    Environment.GetEnvironmentVariable("AGENTBRIDGE_STARK_TEMPERATURE"),
+                    openAiCompatible.Temperature),
+                FirstIntOrNull(
+                    Environment.GetEnvironmentVariable("AGENTBRIDGE_OPENAI_MAX_TOKENS"),
+                    Environment.GetEnvironmentVariable("AGENTBRIDGE_STARK_MAX_TOKENS"),
+                    openAiCompatible.MaxTokens)));
     }
 
     private static string FirstNonBlank(params string?[] values)
@@ -131,6 +170,33 @@ public sealed class AgentBridgeConfigStore
         }
 
         return configValue ?? defaultValue;
+    }
+
+    private static int? FirstIntOrNull(string? firstEnvironmentValue, string? secondEnvironmentValue, int? configValue)
+    {
+        if (int.TryParse(firstEnvironmentValue, out var parsed)
+            || int.TryParse(secondEnvironmentValue, out parsed))
+        {
+            return parsed;
+        }
+
+        return configValue;
+    }
+
+    private static float? FirstFloatOrNull(string? firstEnvironmentValue, string? secondEnvironmentValue, float? configValue)
+    {
+        if (float.TryParse(firstEnvironmentValue, out var parsed)
+            || float.TryParse(secondEnvironmentValue, out parsed))
+        {
+            return parsed;
+        }
+
+        return configValue;
+    }
+
+    private static string? FirstValueOrDefault(string defaultValue, params string?[] values)
+    {
+        return values.FirstOrDefault(value => value is not null) ?? defaultValue;
     }
 
     private static bool FirstBool(bool? overrideValue, string? environmentValue, bool? configValue, bool defaultValue)

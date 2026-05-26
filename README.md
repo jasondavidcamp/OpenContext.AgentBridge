@@ -16,7 +16,7 @@ The initial goal is to provide a workspace-scoped assistant that can:
 
 ## Status
 
-This repository is starting fresh as the next iteration of the OpenContext orchestrator idea. The first implementation is a thin .NET CLI that establishes the workspace boundary, command execution, skill loading, Gemini provider boundary, and SQLite conversation storage.
+This repository is starting fresh as the next iteration of the OpenContext orchestrator idea. The first implementation is a thin .NET CLI that establishes the workspace boundary, command execution, skill loading, model provider boundaries, and SQLite conversation storage.
 
 ## Getting Started
 
@@ -65,6 +65,7 @@ dotnet run --project src/OpenContext.AgentBridge.Cli -- models test .
 - `OpenContext.AgentBridge.Cli`: command-line entry point
 - `OpenContext.AgentBridge.Core`: workspace, execution, model, and skill abstractions
 - `OpenContext.AgentBridge.Providers.Gemini`: Gemini provider adapter boundary
+- `OpenContext.AgentBridge.Providers.OpenAiCompatible`: OpenAI-compatible chat completions adapter for STARK-style gateways
 - `OpenContext.AgentBridge.Storage`: SQLite conversation persistence
 - `docker/`: optional tool container assets
 - `skills/`: repo-level starter documentation for skills
@@ -85,14 +86,23 @@ Run a command through Docker:
 dotnet run --project src/OpenContext.AgentBridge.Cli -- run . --executor docker -- dotnet --info
 ```
 
-## Gemini Configuration
+## Model Provider Configuration
 
-The Gemini provider currently uses environment variables so it can adapt to a public or internal Gemini-compatible endpoint:
+The default provider is Gemini:
 
 ```powershell
 $env:AGENTBRIDGE_GEMINI_API_KEY = "<key>"
 $env:AGENTBRIDGE_GEMINI_MODEL = "gemini-1.5-pro"
 $env:AGENTBRIDGE_GEMINI_ENDPOINT = "<optional custom endpoint>"
+```
+
+STARK and other OpenAI-compatible gateways use `/v1/chat/completions`:
+
+```powershell
+$env:AGENTBRIDGE_MODEL_PROVIDER = "stark"
+$env:AGENTBRIDGE_STARK_ENDPOINT = "https://stark.example.mil/v1"
+$env:AGENTBRIDGE_STARK_MODEL = "<model-id-from-v1-models>"
+$env:AGENTBRIDGE_STARK_API_KEY = "<key>"
 ```
 
 Workspace configuration is stored at `.agentbridge/config.json`. Effective configuration is resolved in this order: CLI flags, environment variables, workspace config, defaults.
@@ -103,7 +113,7 @@ Ask stores the conversation in `.agentbridge/agentbridge.db`:
 dotnet run --project src/OpenContext.AgentBridge.Cli -- ask . --executor host "Summarize this repository."
 ```
 
-`ask` now runs a structured action loop. Gemini must return either a tool request or a final answer as JSON, and AgentBridge validates and executes tool requests inside the selected workspace.
+`ask` now runs a structured action loop. The model must return either a tool request or a final answer as JSON, and AgentBridge validates and executes tool requests inside the selected workspace.
 Tool requests are printed as they run, followed by a run summary with tool counts, commands run, and current git changes.
 
 Start a new conversation:
@@ -138,3 +148,4 @@ Starter tools:
 
 See [docs/action-protocol.md](docs/action-protocol.md) for the current protocol.
 See [docs/configuration.md](docs/configuration.md) for configuration and provider diagnostics.
+See [docs/stark.md](docs/stark.md) for the STARK/OpenAI-compatible provider profile.

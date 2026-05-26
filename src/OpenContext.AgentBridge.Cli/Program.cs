@@ -5,11 +5,13 @@ using OpenContext.AgentBridge.Core.Agents;
 using OpenContext.AgentBridge.Core.Configuration;
 using OpenContext.AgentBridge.Core.Conversation;
 using OpenContext.AgentBridge.Core.Execution;
+using OpenContext.AgentBridge.Core.Models;
 using OpenContext.AgentBridge.Core.Skills;
 using OpenContext.AgentBridge.Core.Tools;
 using OpenContext.AgentBridge.Core.Tools.BuiltIn;
 using OpenContext.AgentBridge.Core.Workspaces;
 using OpenContext.AgentBridge.Providers.Gemini;
+using OpenContext.AgentBridge.Providers.OpenAiCompatible;
 using OpenContext.AgentBridge.Storage;
 
 return await ProgramMain.RunAsync(args);
@@ -371,9 +373,68 @@ internal static class ProgramMain
 
         return args[0].ToLowerInvariant() switch
         {
+            "list" => await ListModelsAsync(args[1..]),
             "test" => await TestModelAsync(args[1..]),
             _ => UnknownModelsCommand(args[0])
         };
+    }
+
+    private static async Task<int> ListModelsAsync(string[] args)
+    {
+        var options = ModelListOptions.Parse(args);
+        var workspace = WorkspaceContext.FromPath(options.WorkspacePath);
+        workspace.EnsureLocalState();
+
+        var config = await ReadEffectiveConfigAsync(
+            workspace,
+            new AgentBridgeConfigOverrides(
+                ModelProvider: options.Provider,
+                OpenAiCompatibleEndpoint: options.Endpoint,
+                OpenAiCompatibleApiKey: options.ApiKey,
+                OpenAiCompatibleApiKeyHeader: options.ApiKeyHeader,
+                OpenAiCompatibleApiKeyPrefix: options.ApiKeyPrefix));
+
+        if (!string.Equals(NormalizeProviderName(config.ModelProvider), "openai-compatible", StringComparison.Ordinal))
+        {
+            Console.Error.WriteLine("Model listing is currently available for openai-compatible or stark providers.");
+            return 1;
+        }
+
+        using var httpClient = new HttpClient();
+        var client = new OpenAiCompatibleModelCatalogClient(
+            httpClient,
+            CreateOpenAiCompatibleOptions(workspace, config));
+
+        Console.WriteLine($"Provider: {config.ModelProvider}");
+        Console.WriteLine($"Endpoint: {GetRedactedModelListEndpoint(workspace, config)}");
+
+        try
+        {
+            var models = await client.ListAsync();
+            if (models.Count == 0)
+            {
+                Console.WriteLine("No models returned.");
+                return 0;
+            }
+
+            foreach (var model in models)
+            {
+                var created = model.Created <= 0
+                    ? string.Empty
+                    : $" created {DateTimeOffset.FromUnixTimeSeconds(model.Created).LocalDateTime:g}";
+                var ownedBy = string.IsNullOrWhiteSpace(model.OwnedBy)
+                    ? string.Empty
+                    : $" owned by {model.OwnedBy}";
+                Console.WriteLine($"{model.Id}{ownedBy}{created}");
+            }
+
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return 1;
+        }
     }
 
     private static async Task<int> TestModelAsync(string[] args)
@@ -385,18 +446,23 @@ internal static class ProgramMain
         var config = await ReadEffectiveConfigAsync(
             workspace,
             new AgentBridgeConfigOverrides(
+                ModelProvider: options.Provider,
                 GeminiEndpoint: options.Endpoint,
                 GeminiModel: options.Model,
                 GeminiApiKey: options.ApiKey,
+                OpenAiCompatibleEndpoint: options.Endpoint,
+                OpenAiCompatibleModel: options.Model,
+                OpenAiCompatibleApiKey: options.ApiKey,
+                OpenAiCompatibleApiKeyHeader: options.ApiKeyHeader,
+                OpenAiCompatibleApiKeyPrefix: options.ApiKeyPrefix,
                 LogModelTraffic: options.LogModelTraffic));
 
         using var httpClient = new HttpClient();
         var provider = CreateModelProvider(httpClient, workspace, config);
-        var geminiOptions = CreateGeminiOptions(workspace, config);
 
         Console.WriteLine($"Provider: {config.ModelProvider}");
-        Console.WriteLine($"Model: {config.Gemini.Model}");
-        Console.WriteLine($"Endpoint: {geminiOptions.GetRedactedEndpoint()}");
+        Console.WriteLine($"Model: {GetModelName(config)}");
+        Console.WriteLine($"Endpoint: {GetRedactedModelEndpoint(workspace, config)}");
         Console.WriteLine($"Traffic logging: {config.LogModelTraffic}");
 
         var stopwatch = Stopwatch.StartNew();
@@ -469,17 +535,19 @@ internal static class ProgramMain
         return new AgentBridgeConfigStore().ReadEffectiveAsync(workspace, overrides);
     }
 
-    private static GeminiModelProvider CreateModelProvider(
+    private static IModelProvider CreateModelProvider(
         HttpClient httpClient,
         WorkspaceContext workspace,
         EffectiveAgentBridgeConfig config)
     {
-        if (!string.Equals(config.ModelProvider, "gemini", StringComparison.OrdinalIgnoreCase))
+        return NormalizeProviderName(config.ModelProvider) switch
         {
-            throw new ArgumentException($"Unknown model provider: {config.ModelProvider}");
-        }
-
-        return new GeminiModelProvider(httpClient, CreateGeminiOptions(workspace, config));
+            "gemini" => new GeminiModelProvider(httpClient, CreateGeminiOptions(workspace, config)),
+            "openai-compatible" => new OpenAiCompatibleModelProvider(
+                httpClient,
+                CreateOpenAiCompatibleOptions(workspace, config)),
+            _ => throw new ArgumentException($"Unknown model provider: {config.ModelProvider}")
+        };
     }
 
     private static GeminiOptions CreateGeminiOptions(
@@ -494,6 +562,73 @@ internal static class ProgramMain
             LogModelTraffic = config.LogModelTraffic,
             LogDirectory = workspace.LogsPath
         };
+    }
+
+    private static OpenAiCompatibleOptions CreateOpenAiCompatibleOptions(
+        WorkspaceContext workspace,
+        EffectiveAgentBridgeConfig config)
+    {
+        return new OpenAiCompatibleOptions
+        {
+            ApiKey = config.OpenAiCompatible.ApiKey,
+            ApiKeyHeader = config.OpenAiCompatible.ApiKeyHeader,
+            ApiKeyPrefix = config.OpenAiCompatible.ApiKeyPrefix,
+            Endpoint = config.OpenAiCompatible.Endpoint,
+            Model = config.OpenAiCompatible.Model,
+            Temperature = config.OpenAiCompatible.Temperature,
+            MaxTokens = config.OpenAiCompatible.MaxTokens,
+            LogModelTraffic = config.LogModelTraffic,
+            LogDirectory = workspace.LogsPath
+        };
+    }
+
+    private static string NormalizeProviderName(string provider)
+    {
+        return provider.ToLowerInvariant() switch
+        {
+            "openai" or "openai-compatible" or "stark" => "openai-compatible",
+            var normalized => normalized
+        };
+    }
+
+    private static string GetModelName(EffectiveAgentBridgeConfig config)
+    {
+        return NormalizeProviderName(config.ModelProvider) switch
+        {
+            "gemini" => config.Gemini.Model,
+            "openai-compatible" => config.OpenAiCompatible.Model,
+            _ => "<unknown>"
+        };
+    }
+
+    private static string GetRedactedModelEndpoint(WorkspaceContext workspace, EffectiveAgentBridgeConfig config)
+    {
+        try
+        {
+            return NormalizeProviderName(config.ModelProvider) switch
+            {
+                "gemini" => CreateGeminiOptions(workspace, config).GetRedactedEndpoint(),
+                "openai-compatible" => CreateOpenAiCompatibleOptions(workspace, config).GetRedactedEndpoint(),
+                _ => "<unknown>"
+            };
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UriFormatException)
+        {
+            return "<not configured>";
+        }
+    }
+
+    private static string GetRedactedModelListEndpoint(WorkspaceContext workspace, EffectiveAgentBridgeConfig config)
+    {
+        try
+        {
+            return OpenAiCompatibleOptions.RedactEndpoint(
+                CreateOpenAiCompatibleOptions(workspace, config).GetModelsEndpoint());
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UriFormatException)
+        {
+            return "<not configured>";
+        }
     }
 
     private static async Task<string> ResolveConversationIdAsync(
@@ -626,12 +761,17 @@ internal static class ProgramMain
               agentbridge conversations show [workspace] <conversation-id>
               agentbridge config init [workspace] [--force]
               agentbridge config show [workspace]
-              agentbridge models test [workspace] [--endpoint url] [--model name]
+              agentbridge models list [workspace] [--provider name] [--endpoint url]
+              agentbridge models test [workspace] [--provider name] [--endpoint url] [--model name]
 
             Environment:
+              AGENTBRIDGE_MODEL_PROVIDER
               AGENTBRIDGE_GEMINI_API_KEY
               AGENTBRIDGE_GEMINI_ENDPOINT
               AGENTBRIDGE_GEMINI_MODEL
+              AGENTBRIDGE_OPENAI_API_KEY or AGENTBRIDGE_STARK_API_KEY
+              AGENTBRIDGE_OPENAI_ENDPOINT or AGENTBRIDGE_STARK_ENDPOINT
+              AGENTBRIDGE_OPENAI_MODEL or AGENTBRIDGE_STARK_MODEL
               AGENTBRIDGE_DEFAULT_EXECUTOR
               AGENTBRIDGE_MAX_ITERATIONS
               AGENTBRIDGE_LOG_MODEL_TRAFFIC
@@ -667,7 +807,8 @@ internal static class ProgramMain
             AgentBridge Models
 
             Usage:
-              agentbridge models test [workspace] [--endpoint url] [--model name] [--message text] [--log-traffic]
+              agentbridge models list [workspace] [--provider openai-compatible|stark] [--endpoint url] [--api-key key] [--api-key-header name] [--api-key-prefix value]
+              agentbridge models test [workspace] [--provider gemini|openai-compatible|stark] [--endpoint url] [--model name] [--api-key key] [--api-key-header name] [--api-key-prefix value] [--message text] [--log-traffic]
             """);
     }
 
@@ -686,6 +827,18 @@ internal static class ProgramMain
                 ApiKey = string.IsNullOrWhiteSpace(config.Gemini.ApiKey)
                     ? null
                     : "<redacted>"
+            },
+            OpenAiCompatible = new
+            {
+                config.OpenAiCompatible.Model,
+                Endpoint = RedactEndpoint(config.OpenAiCompatible.Endpoint),
+                ApiKey = string.IsNullOrWhiteSpace(config.OpenAiCompatible.ApiKey)
+                    ? null
+                    : "<redacted>",
+                config.OpenAiCompatible.ApiKeyHeader,
+                config.OpenAiCompatible.ApiKeyPrefix,
+                config.OpenAiCompatible.Temperature,
+                config.OpenAiCompatible.MaxTokens
             }
         };
     }
@@ -697,7 +850,7 @@ internal static class ProgramMain
             return endpoint;
         }
 
-        return GeminiOptions.RedactEndpoint(uri);
+        return OpenAiCompatibleOptions.RedactEndpoint(uri);
     }
 
     private static string SummarizeArguments(string toolName, string argumentsJson)
@@ -832,18 +985,24 @@ internal static class ProgramMain
 
     private sealed record ModelTestOptions(
         string WorkspacePath,
+        string? Provider,
         string? Endpoint,
         string? Model,
         string? ApiKey,
+        string? ApiKeyHeader,
+        string? ApiKeyPrefix,
         bool? LogModelTraffic,
         string Message)
     {
         public static ModelTestOptions Parse(string[] args)
         {
             var workspacePath = Directory.GetCurrentDirectory();
+            string? provider = null;
             string? endpoint = null;
             string? model = null;
             string? apiKey = null;
+            string? apiKeyHeader = null;
+            string? apiKeyPrefix = null;
             bool? logModelTraffic = null;
             var message = """Return exactly {"type":"final","message":"model test ok"}.""";
 
@@ -851,6 +1010,9 @@ internal static class ProgramMain
             {
                 switch (args[index])
                 {
+                    case "--provider" when index + 1 < args.Length:
+                        provider = args[++index];
+                        break;
                     case "--endpoint" when index + 1 < args.Length:
                         endpoint = args[++index];
                         break;
@@ -859,6 +1021,12 @@ internal static class ProgramMain
                         break;
                     case "--api-key" when index + 1 < args.Length:
                         apiKey = args[++index];
+                        break;
+                    case "--api-key-header" when index + 1 < args.Length:
+                        apiKeyHeader = args[++index];
+                        break;
+                    case "--api-key-prefix" when index + 1 < args.Length:
+                        apiKeyPrefix = args[++index];
                         break;
                     case "--message" when index + 1 < args.Length:
                         message = args[++index];
@@ -878,11 +1046,70 @@ internal static class ProgramMain
 
             return new ModelTestOptions(
                 workspacePath,
+                provider,
                 endpoint,
                 model,
                 apiKey,
+                apiKeyHeader,
+                apiKeyPrefix,
                 logModelTraffic,
                 message);
+        }
+    }
+
+    private sealed record ModelListOptions(
+        string WorkspacePath,
+        string? Provider,
+        string? Endpoint,
+        string? ApiKey,
+        string? ApiKeyHeader,
+        string? ApiKeyPrefix)
+    {
+        public static ModelListOptions Parse(string[] args)
+        {
+            var workspacePath = Directory.GetCurrentDirectory();
+            string? provider = null;
+            string? endpoint = null;
+            string? apiKey = null;
+            string? apiKeyHeader = null;
+            string? apiKeyPrefix = null;
+
+            for (var index = 0; index < args.Length; index++)
+            {
+                switch (args[index])
+                {
+                    case "--provider" when index + 1 < args.Length:
+                        provider = args[++index];
+                        break;
+                    case "--endpoint" when index + 1 < args.Length:
+                        endpoint = args[++index];
+                        break;
+                    case "--api-key" when index + 1 < args.Length:
+                        apiKey = args[++index];
+                        break;
+                    case "--api-key-header" when index + 1 < args.Length:
+                        apiKeyHeader = args[++index];
+                        break;
+                    case "--api-key-prefix" when index + 1 < args.Length:
+                        apiKeyPrefix = args[++index];
+                        break;
+                    default:
+                        if (!args[index].StartsWith("--", StringComparison.Ordinal))
+                        {
+                            workspacePath = args[index];
+                        }
+
+                        break;
+                }
+            }
+
+            return new ModelListOptions(
+                workspacePath,
+                provider,
+                endpoint,
+                apiKey,
+                apiKeyHeader,
+                apiKeyPrefix);
         }
     }
 

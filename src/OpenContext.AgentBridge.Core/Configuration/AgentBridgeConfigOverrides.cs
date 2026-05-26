@@ -6,4 +6,10 @@ public sealed record AgentBridgeConfigOverrides(
     string? GeminiEndpoint = null,
     string? GeminiModel = null,
     string? GeminiApiKey = null,
-    bool? LogModelTraffic = null);
+    bool? LogModelTraffic = null,
+    string? ModelProvider = null,
+    string? OpenAiCompatibleEndpoint = null,
+    string? OpenAiCompatibleModel = null,
+    string? OpenAiCompatibleApiKey = null,
+    string? OpenAiCompatibleApiKeyHeader = null,
+    string? OpenAiCompatibleApiKeyPrefix = null);

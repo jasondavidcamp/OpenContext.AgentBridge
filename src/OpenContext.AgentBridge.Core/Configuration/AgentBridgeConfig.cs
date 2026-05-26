@@ -12,6 +12,8 @@ public sealed class AgentBridgeConfig
 
     public GeminiConfig Gemini { get; init; } = new();
 
+    public OpenAiCompatibleConfig OpenAiCompatible { get; init; } = new();
+
     public static AgentBridgeConfig CreateDefault()
     {
         return new AgentBridgeConfig();
