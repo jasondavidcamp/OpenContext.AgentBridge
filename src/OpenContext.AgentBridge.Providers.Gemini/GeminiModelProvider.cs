@@ -25,7 +25,7 @@ public sealed class GeminiModelProvider : IModelProvider
         if (string.IsNullOrWhiteSpace(_options.ApiKey) && string.IsNullOrWhiteSpace(_options.Endpoint))
         {
             throw new InvalidOperationException(
-                "Gemini is not configured. Set AGENTBRIDGE_GEMINI_API_KEY or AGENTBRIDGE_GEMINI_ENDPOINT.");
+                "Gemini is not configured. Set AGENTBRIDGE_GEMINI_API_KEY, AGENTBRIDGE_GEMINI_ENDPOINT, or configure .agentbridge/config.json.");
         }
 
         var endpoint = _options.GetEndpoint();
@@ -41,19 +41,29 @@ public sealed class GeminiModelProvider : IModelProvider
             contents = request.Messages.Select(ToGeminiContent).ToArray()
         };
 
+        var startedAt = DateTimeOffset.UtcNow;
         using var response = await _httpClient
             .PostAsJsonAsync(endpoint, payload, cancellationToken)
             .ConfigureAwait(false);
 
         var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        await GeminiTrafficLogger.WriteAsync(
+                _options,
+                endpoint,
+                startedAt,
+                (int)response.StatusCode,
+                payload,
+                body,
+                cancellationToken)
+            .ConfigureAwait(false);
 
         if (!response.IsSuccessStatusCode)
         {
             throw new InvalidOperationException(
-                $"Gemini request failed with {(int)response.StatusCode}: {body}");
+                BuildHttpErrorMessage(response, endpoint, body));
         }
 
-        return new AgentTurnResponse(ExtractText(body));
+        return new AgentTurnResponse(GeminiResponseTextExtractor.Extract(body));
     }
 
     private static object ToGeminiContent(AgentMessage message)
@@ -111,25 +121,27 @@ public sealed class GeminiModelProvider : IModelProvider
             """;
     }
 
-    private static string ExtractText(string responseBody)
+    private static string BuildHttpErrorMessage(HttpResponseMessage response, Uri endpoint, string body)
     {
-        using var document = JsonDocument.Parse(responseBody);
-
-        var candidates = document.RootElement.GetProperty("candidates");
-        if (candidates.GetArrayLength() == 0)
+        var status = (int)response.StatusCode;
+        var hint = status switch
         {
-            return string.Empty;
-        }
+            401 => " Check API key or endpoint authentication.",
+            403 => " Check endpoint access and model permissions.",
+            404 => " Check endpoint URL and model name.",
+            429 => " Rate limit or quota exceeded.",
+            _ => string.Empty
+        };
 
-        var parts = candidates[0]
-            .GetProperty("content")
-            .GetProperty("parts");
+        return $"Gemini request failed with {status} {response.ReasonPhrase} at {GeminiOptions.RedactEndpoint(endpoint)}.{hint} Response: {Preview(body)}";
+    }
 
-        return string.Join(
-            Environment.NewLine,
-            parts.EnumerateArray()
-                .Where(part => part.TryGetProperty("text", out _))
-                .Select(part => part.GetProperty("text").GetString())
-                .Where(text => !string.IsNullOrWhiteSpace(text)));
+    private static string Preview(string value, int maxCharacters = 1_500)
+    {
+        var preview = value.ReplaceLineEndings(" ").Trim();
+
+        return preview.Length <= maxCharacters
+            ? preview
+            : preview[..maxCharacters] + "...";
     }
 }

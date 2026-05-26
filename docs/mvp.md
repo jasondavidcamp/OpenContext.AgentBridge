@@ -22,6 +22,7 @@ agentbridge <workspace>
 - JSON action loop for tool execution
 - Patch-based code editing
 - Observable agent runs with persisted conversations
+- Workspace config and model diagnostics
 
 ## Next Decisions
 

@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using System.Text.Json;
 using OpenContext.AgentBridge.Core;
 using OpenContext.AgentBridge.Core.Agents;
+using OpenContext.AgentBridge.Core.Configuration;
 using OpenContext.AgentBridge.Core.Conversation;
 using OpenContext.AgentBridge.Core.Execution;
 using OpenContext.AgentBridge.Core.Skills;
@@ -14,6 +16,12 @@ return await ProgramMain.RunAsync(args);
 
 internal static class ProgramMain
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        WriteIndented = true
+    };
+
     public static async Task<int> RunAsync(string[] args)
     {
         if (args.Length == 0 || IsHelp(args[0]))
@@ -32,6 +40,8 @@ internal static class ProgramMain
                 "skills" => await ListSkillsAsync(args[1..]),
                 "ask" => await AskAsync(args[1..]),
                 "conversation" or "conversations" => await ConversationsAsync(args[1..]),
+                "config" => await ConfigAsync(args[1..]),
+                "model" or "models" => await ModelsAsync(args[1..]),
                 _ => UnknownCommand(args[0])
             };
         }
@@ -64,7 +74,10 @@ internal static class ProgramMain
         var store = new SqliteConversationStore(workspace.ConversationDatabasePath);
         await store.InitializeAsync();
 
-        var executor = CreateExecutor(parsed.Executor);
+        var config = await ReadEffectiveConfigAsync(
+            workspace,
+            new AgentBridgeConfigOverrides(DefaultExecutor: parsed.Executor));
+        var executor = CreateExecutor(config.DefaultExecutor);
         var skills = await LoadSkillsAsync(workspace);
 
         Console.WriteLine($"Workspace: {workspace.RootPath}");
@@ -99,7 +112,10 @@ internal static class ProgramMain
 
         var parsed = CommandOptions.Parse(args[..separatorIndex]);
         var workspace = GetWorkspace(parsed.Positionals);
-        var executor = CreateExecutor(parsed.Executor);
+        var config = await ReadEffectiveConfigAsync(
+            workspace,
+            new AgentBridgeConfigOverrides(DefaultExecutor: parsed.Executor));
+        var executor = CreateExecutor(config.DefaultExecutor);
         var command = string.Join(' ', args[(separatorIndex + 1)..]);
 
         var result = await executor.RunAsync(
@@ -161,18 +177,16 @@ internal static class ProgramMain
             conversationId,
             new AgentMessage("user", options.Message, DateTimeOffset.UtcNow));
 
+        var config = await ReadEffectiveConfigAsync(
+            workspace,
+            new AgentBridgeConfigOverrides(
+                DefaultExecutor: options.Executor,
+                MaxIterations: options.MaxIterations));
         var skills = await LoadSkillsAsync(workspace);
-        var executor = CreateExecutor(options.Executor);
+        var executor = CreateExecutor(config.DefaultExecutor);
 
         using var httpClient = new HttpClient();
-        var provider = new GeminiModelProvider(
-            httpClient,
-            new GeminiOptions
-            {
-                ApiKey = Environment.GetEnvironmentVariable("AGENTBRIDGE_GEMINI_API_KEY"),
-                Endpoint = Environment.GetEnvironmentVariable("AGENTBRIDGE_GEMINI_ENDPOINT"),
-                Model = Environment.GetEnvironmentVariable("AGENTBRIDGE_GEMINI_MODEL") ?? "gemini-1.5-pro"
-            });
+        var provider = CreateModelProvider(httpClient, workspace, config);
 
         var loop = new AgentLoop(
             provider,
@@ -188,7 +202,7 @@ internal static class ProgramMain
             workspace,
             executor,
             skills,
-            new AgentLoopOptions(options.MaxIterations, new ConsoleAgentProgress()));
+            new AgentLoopOptions(config.MaxIterations, new ConsoleAgentProgress()));
 
         Console.WriteLine();
         Console.WriteLine("Final:");
@@ -300,6 +314,124 @@ internal static class ProgramMain
         return 0;
     }
 
+    private static async Task<int> ConfigAsync(string[] args)
+    {
+        if (args.Length == 0 || IsHelp(args[0]))
+        {
+            WriteConfigHelp();
+            return 0;
+        }
+
+        return args[0].ToLowerInvariant() switch
+        {
+            "init" => await InitConfigAsync(args[1..]),
+            "show" => await ShowConfigAsync(args[1..]),
+            _ => UnknownConfigCommand(args[0])
+        };
+    }
+
+    private static async Task<int> InitConfigAsync(string[] args)
+    {
+        var force = args.Any(argument => string.Equals(argument, "--force", StringComparison.OrdinalIgnoreCase));
+        var workspace = GetWorkspace(args.Where(argument => !string.Equals(argument, "--force", StringComparison.OrdinalIgnoreCase)).ToArray());
+        var store = new AgentBridgeConfigStore();
+        var created = await store.WriteDefaultAsync(workspace, overwrite: force);
+
+        Console.WriteLine(created
+            ? $"Created config: {workspace.ConfigPath}"
+            : $"Config already exists: {workspace.ConfigPath}");
+
+        if (!created && !force)
+        {
+            Console.WriteLine("Use --force to overwrite it.");
+        }
+
+        return 0;
+    }
+
+    private static async Task<int> ShowConfigAsync(string[] args)
+    {
+        var workspace = GetWorkspace(args);
+        workspace.EnsureLocalState();
+
+        var config = await ReadEffectiveConfigAsync(workspace);
+
+        Console.WriteLine($"Config file: {workspace.ConfigPath}");
+        Console.WriteLine(JsonSerializer.Serialize(ToRedactedConfig(config), JsonOptions));
+        return 0;
+    }
+
+    private static async Task<int> ModelsAsync(string[] args)
+    {
+        if (args.Length == 0 || IsHelp(args[0]))
+        {
+            WriteModelsHelp();
+            return 0;
+        }
+
+        return args[0].ToLowerInvariant() switch
+        {
+            "test" => await TestModelAsync(args[1..]),
+            _ => UnknownModelsCommand(args[0])
+        };
+    }
+
+    private static async Task<int> TestModelAsync(string[] args)
+    {
+        var options = ModelTestOptions.Parse(args);
+        var workspace = WorkspaceContext.FromPath(options.WorkspacePath);
+        workspace.EnsureLocalState();
+
+        var config = await ReadEffectiveConfigAsync(
+            workspace,
+            new AgentBridgeConfigOverrides(
+                GeminiEndpoint: options.Endpoint,
+                GeminiModel: options.Model,
+                GeminiApiKey: options.ApiKey,
+                LogModelTraffic: options.LogModelTraffic));
+
+        using var httpClient = new HttpClient();
+        var provider = CreateModelProvider(httpClient, workspace, config);
+        var geminiOptions = CreateGeminiOptions(workspace, config);
+
+        Console.WriteLine($"Provider: {config.ModelProvider}");
+        Console.WriteLine($"Model: {config.Gemini.Model}");
+        Console.WriteLine($"Endpoint: {geminiOptions.GetRedactedEndpoint()}");
+        Console.WriteLine($"Traffic logging: {config.LogModelTraffic}");
+
+        var stopwatch = Stopwatch.StartNew();
+        try
+        {
+            var response = await provider.CompleteAsync(
+                new(
+                    workspace.RootPath,
+                    new[]
+                    {
+                        new AgentMessage(
+                            "user",
+                            options.Message,
+                            DateTimeOffset.UtcNow)
+                    },
+                    Array.Empty<Skill>(),
+                    Array.Empty<ToolDefinition>()));
+
+            stopwatch.Stop();
+            Console.WriteLine($"Status: ok");
+            Console.WriteLine($"Latency: {stopwatch.Elapsed}");
+            Console.WriteLine("Response preview:");
+            Console.WriteLine(Preview(response.Content, 1_200));
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            Console.WriteLine("Status: failed");
+            Console.WriteLine($"Latency: {stopwatch.Elapsed}");
+            Console.Error.WriteLine(ex.Message);
+            return 1;
+        }
+    }
+
     private static WorkspaceContext GetWorkspace(string[] args)
     {
         var path = args.FirstOrDefault(argument => !argument.StartsWith("--", StringComparison.Ordinal))
@@ -328,6 +460,40 @@ internal static class ProgramMain
             workspace.SkillsPath,
             Path.Combine(workspace.RootPath, AgentBridgeDefaults.SkillsDirectoryName)
         });
+    }
+
+    private static Task<EffectiveAgentBridgeConfig> ReadEffectiveConfigAsync(
+        WorkspaceContext workspace,
+        AgentBridgeConfigOverrides? overrides = null)
+    {
+        return new AgentBridgeConfigStore().ReadEffectiveAsync(workspace, overrides);
+    }
+
+    private static GeminiModelProvider CreateModelProvider(
+        HttpClient httpClient,
+        WorkspaceContext workspace,
+        EffectiveAgentBridgeConfig config)
+    {
+        if (!string.Equals(config.ModelProvider, "gemini", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException($"Unknown model provider: {config.ModelProvider}");
+        }
+
+        return new GeminiModelProvider(httpClient, CreateGeminiOptions(workspace, config));
+    }
+
+    private static GeminiOptions CreateGeminiOptions(
+        WorkspaceContext workspace,
+        EffectiveAgentBridgeConfig config)
+    {
+        return new GeminiOptions
+        {
+            ApiKey = config.Gemini.ApiKey,
+            Endpoint = config.Gemini.Endpoint,
+            Model = config.Gemini.Model,
+            LogModelTraffic = config.LogModelTraffic,
+            LogDirectory = workspace.LogsPath
+        };
     }
 
     private static async Task<string> ResolveConversationIdAsync(
@@ -424,6 +590,22 @@ internal static class ProgramMain
         return 1;
     }
 
+    private static int UnknownConfigCommand(string command)
+    {
+        Console.Error.WriteLine($"Unknown config command: {command}");
+        Console.Error.WriteLine();
+        WriteConfigHelp();
+        return 1;
+    }
+
+    private static int UnknownModelsCommand(string command)
+    {
+        Console.Error.WriteLine($"Unknown models command: {command}");
+        Console.Error.WriteLine();
+        WriteModelsHelp();
+        return 1;
+    }
+
     private static bool IsHelp(string value)
     {
         return value is "-h" or "--help" or "help";
@@ -442,11 +624,17 @@ internal static class ProgramMain
               agentbridge ask <workspace> [--new|--conversation id] [--executor host|docker] [--max-iterations n] <message>
               agentbridge conversations list [workspace]
               agentbridge conversations show [workspace] <conversation-id>
+              agentbridge config init [workspace] [--force]
+              agentbridge config show [workspace]
+              agentbridge models test [workspace] [--endpoint url] [--model name]
 
             Environment:
               AGENTBRIDGE_GEMINI_API_KEY
               AGENTBRIDGE_GEMINI_ENDPOINT
               AGENTBRIDGE_GEMINI_MODEL
+              AGENTBRIDGE_DEFAULT_EXECUTOR
+              AGENTBRIDGE_MAX_ITERATIONS
+              AGENTBRIDGE_LOG_MODEL_TRAFFIC
               AGENTBRIDGE_DOCKER_IMAGE
             """);
     }
@@ -460,6 +648,56 @@ internal static class ProgramMain
               agentbridge conversations list [workspace]
               agentbridge conversations show [workspace] <conversation-id>
             """);
+    }
+
+    private static void WriteConfigHelp()
+    {
+        Console.WriteLine("""
+            AgentBridge Config
+
+            Usage:
+              agentbridge config init [workspace] [--force]
+              agentbridge config show [workspace]
+            """);
+    }
+
+    private static void WriteModelsHelp()
+    {
+        Console.WriteLine("""
+            AgentBridge Models
+
+            Usage:
+              agentbridge models test [workspace] [--endpoint url] [--model name] [--message text] [--log-traffic]
+            """);
+    }
+
+    private static object ToRedactedConfig(EffectiveAgentBridgeConfig config)
+    {
+        return new
+        {
+            config.ModelProvider,
+            config.DefaultExecutor,
+            config.MaxIterations,
+            config.LogModelTraffic,
+            Gemini = new
+            {
+                config.Gemini.Model,
+                Endpoint = RedactEndpoint(config.Gemini.Endpoint),
+                ApiKey = string.IsNullOrWhiteSpace(config.Gemini.ApiKey)
+                    ? null
+                    : "<redacted>"
+            }
+        };
+    }
+
+    private static string? RedactEndpoint(string? endpoint)
+    {
+        if (string.IsNullOrWhiteSpace(endpoint) || !Uri.TryCreate(endpoint, UriKind.Absolute, out var uri))
+        {
+            return endpoint;
+        }
+
+        return GeminiOptions.RedactEndpoint(uri);
     }
 
     private static string SummarizeArguments(string toolName, string argumentsJson)
@@ -509,13 +747,13 @@ internal static class ProgramMain
 
     private sealed record CommandOptions(
         string[] Positionals,
-        string Executor,
+        string? Executor,
         int TimeoutMinutes)
     {
         public static CommandOptions Parse(string[] args)
         {
             var positionals = new List<string>();
-            var executor = "host";
+            string? executor = null;
             var timeoutMinutes = 10;
 
             for (var index = 0; index < args.Length; index++)
@@ -540,8 +778,8 @@ internal static class ProgramMain
 
     private sealed record AskOptions(
         string WorkspacePath,
-        string Executor,
-        int MaxIterations,
+        string? Executor,
+        int? MaxIterations,
         bool StartNew,
         string? ConversationId,
         string Message)
@@ -549,8 +787,8 @@ internal static class ProgramMain
         public static AskOptions Parse(string[] args)
         {
             var workspacePath = args[0];
-            var executor = "host";
-            var maxIterations = 8;
+            string? executor = null;
+            int? maxIterations = null;
             var startNew = false;
             string? conversationId = null;
             var messageParts = new List<string>();
@@ -589,6 +827,62 @@ internal static class ProgramMain
                 startNew,
                 conversationId,
                 string.Join(' ', messageParts));
+        }
+    }
+
+    private sealed record ModelTestOptions(
+        string WorkspacePath,
+        string? Endpoint,
+        string? Model,
+        string? ApiKey,
+        bool? LogModelTraffic,
+        string Message)
+    {
+        public static ModelTestOptions Parse(string[] args)
+        {
+            var workspacePath = Directory.GetCurrentDirectory();
+            string? endpoint = null;
+            string? model = null;
+            string? apiKey = null;
+            bool? logModelTraffic = null;
+            var message = """Return exactly {"type":"final","message":"model test ok"}.""";
+
+            for (var index = 0; index < args.Length; index++)
+            {
+                switch (args[index])
+                {
+                    case "--endpoint" when index + 1 < args.Length:
+                        endpoint = args[++index];
+                        break;
+                    case "--model" when index + 1 < args.Length:
+                        model = args[++index];
+                        break;
+                    case "--api-key" when index + 1 < args.Length:
+                        apiKey = args[++index];
+                        break;
+                    case "--message" when index + 1 < args.Length:
+                        message = args[++index];
+                        break;
+                    case "--log-traffic":
+                        logModelTraffic = true;
+                        break;
+                    default:
+                        if (!args[index].StartsWith("--", StringComparison.Ordinal))
+                        {
+                            workspacePath = args[index];
+                        }
+
+                        break;
+                }
+            }
+
+            return new ModelTestOptions(
+                workspacePath,
+                endpoint,
+                model,
+                apiKey,
+                logModelTraffic,
+                message);
         }
     }
 

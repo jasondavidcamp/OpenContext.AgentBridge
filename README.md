@@ -47,6 +47,19 @@ Check the workspace:
 dotnet run --project src/OpenContext.AgentBridge.Cli -- doctor .
 ```
 
+Create and inspect workspace configuration:
+
+```powershell
+dotnet run --project src/OpenContext.AgentBridge.Cli -- config init .
+dotnet run --project src/OpenContext.AgentBridge.Cli -- config show .
+```
+
+Test the configured model endpoint:
+
+```powershell
+dotnet run --project src/OpenContext.AgentBridge.Cli -- models test .
+```
+
 ## Current Shape
 
 - `OpenContext.AgentBridge.Cli`: command-line entry point
@@ -81,6 +94,8 @@ $env:AGENTBRIDGE_GEMINI_API_KEY = "<key>"
 $env:AGENTBRIDGE_GEMINI_MODEL = "gemini-1.5-pro"
 $env:AGENTBRIDGE_GEMINI_ENDPOINT = "<optional custom endpoint>"
 ```
+
+Workspace configuration is stored at `.agentbridge/config.json`. Effective configuration is resolved in this order: CLI flags, environment variables, workspace config, defaults.
 
 Ask stores the conversation in `.agentbridge/agentbridge.db`:
 
@@ -122,3 +137,4 @@ Starter tools:
 - `git_diff`
 
 See [docs/action-protocol.md](docs/action-protocol.md) for the current protocol.
+See [docs/configuration.md](docs/configuration.md) for configuration and provider diagnostics.

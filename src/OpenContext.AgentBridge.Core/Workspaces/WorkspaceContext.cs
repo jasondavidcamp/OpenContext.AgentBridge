@@ -8,6 +8,8 @@ public sealed class WorkspaceContext
         LocalStatePath = Path.Combine(RootPath, AgentBridgeDefaults.LocalStateDirectoryName);
         SkillsPath = Path.Combine(LocalStatePath, AgentBridgeDefaults.SkillsDirectoryName);
         ConversationDatabasePath = Path.Combine(LocalStatePath, AgentBridgeDefaults.ConversationDatabaseFileName);
+        ConfigPath = Path.Combine(LocalStatePath, AgentBridgeDefaults.ConfigFileName);
+        LogsPath = Path.Combine(LocalStatePath, AgentBridgeDefaults.LogsDirectoryName);
     }
 
     public string RootPath { get; }
@@ -17,6 +19,10 @@ public sealed class WorkspaceContext
     public string SkillsPath { get; }
 
     public string ConversationDatabasePath { get; }
+
+    public string ConfigPath { get; }
+
+    public string LogsPath { get; }
 
     public static WorkspaceContext FromPath(string path)
     {
@@ -39,6 +45,7 @@ public sealed class WorkspaceContext
     {
         Directory.CreateDirectory(LocalStatePath);
         Directory.CreateDirectory(SkillsPath);
+        Directory.CreateDirectory(LogsPath);
     }
 
     public string ResolvePath(string path)
