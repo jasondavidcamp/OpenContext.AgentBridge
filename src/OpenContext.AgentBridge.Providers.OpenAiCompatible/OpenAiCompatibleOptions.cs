@@ -27,12 +27,12 @@ public sealed class OpenAiCompatibleOptions
     {
         var endpoint = GetConfiguredEndpoint();
         var path = endpoint.AbsolutePath.TrimEnd('/');
-        if (path.EndsWith("/v1/chat/completions", StringComparison.OrdinalIgnoreCase))
+        if (path.EndsWith("/chat/completions", StringComparison.OrdinalIgnoreCase))
         {
             return endpoint;
         }
 
-        if (path.EndsWith("/v1", StringComparison.OrdinalIgnoreCase))
+        if (IsKnownOpenAiCompatibleBasePath(path))
         {
             return WithPath(endpoint, path + "/chat/completions");
         }
@@ -44,18 +44,18 @@ public sealed class OpenAiCompatibleOptions
     {
         var endpoint = GetConfiguredEndpoint();
         var path = endpoint.AbsolutePath.TrimEnd('/');
-        if (path.EndsWith("/v1/models", StringComparison.OrdinalIgnoreCase))
+        if (path.EndsWith("/models", StringComparison.OrdinalIgnoreCase))
         {
             return endpoint;
         }
 
-        if (path.EndsWith("/v1/chat/completions", StringComparison.OrdinalIgnoreCase))
+        if (path.EndsWith("/chat/completions", StringComparison.OrdinalIgnoreCase))
         {
             var basePath = path[..^"/chat/completions".Length];
             return WithPath(endpoint, basePath + "/models");
         }
 
-        if (path.EndsWith("/v1", StringComparison.OrdinalIgnoreCase))
+        if (IsKnownOpenAiCompatibleBasePath(path))
         {
             return WithPath(endpoint, path + "/models");
         }
@@ -108,6 +108,12 @@ public sealed class OpenAiCompatibleOptions
         };
 
         return builder.Uri;
+    }
+
+    private static bool IsKnownOpenAiCompatibleBasePath(string path)
+    {
+        return path.EndsWith("/v1", StringComparison.OrdinalIgnoreCase)
+            || path.EndsWith("/openai", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string CombinePath(string basePath, string suffix)

@@ -85,12 +85,27 @@ $env:AGENTBRIDGE_OPENAI_MODEL = "<model>"
 $env:AGENTBRIDGE_OPENAI_API_KEY = "<key>"
 ```
 
+For Gemini through Google's OpenAI-compatible endpoint:
+
+```powershell
+$env:AGENTBRIDGE_MODEL_PROVIDER = "gemini-openai"
+$env:AGENTBRIDGE_OPENAI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/openai/"
+$env:AGENTBRIDGE_OPENAI_MODEL = "gemini-2.5-flash"
+$env:AGENTBRIDGE_OPENAI_API_KEY = $env:AGENTBRIDGE_GEMINI_API_KEY
+```
+
 ## Model Diagnostics
 
 List STARK/OpenAI-compatible models:
 
 ```powershell
 dotnet run --project src/OpenContext.AgentBridge.Cli -- models list . --provider stark --endpoint "<endpoint>" --api-key "<key>"
+```
+
+List Gemini models through the OpenAI-compatible endpoint:
+
+```powershell
+dotnet run --project src/OpenContext.AgentBridge.Cli -- models list . --provider gemini-openai --endpoint "https://generativelanguage.googleapis.com/v1beta/openai/" --api-key "$env:AGENTBRIDGE_GEMINI_API_KEY"
 ```
 
 Test the configured model endpoint:

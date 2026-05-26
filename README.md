@@ -105,6 +105,15 @@ $env:AGENTBRIDGE_STARK_MODEL = "<model-id-from-v1-models>"
 $env:AGENTBRIDGE_STARK_API_KEY = "<key>"
 ```
 
+Gemini can also be tested through Google's OpenAI-compatible endpoint:
+
+```powershell
+$env:AGENTBRIDGE_MODEL_PROVIDER = "gemini-openai"
+$env:AGENTBRIDGE_OPENAI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/openai/"
+$env:AGENTBRIDGE_OPENAI_MODEL = "gemini-2.5-flash"
+$env:AGENTBRIDGE_OPENAI_API_KEY = $env:AGENTBRIDGE_GEMINI_API_KEY
+```
+
 Workspace configuration is stored at `.agentbridge/config.json`. Effective configuration is resolved in this order: CLI flags, environment variables, workspace config, defaults.
 
 Ask stores the conversation in `.agentbridge/agentbridge.db`:
@@ -148,4 +157,5 @@ Starter tools:
 
 See [docs/action-protocol.md](docs/action-protocol.md) for the current protocol.
 See [docs/configuration.md](docs/configuration.md) for configuration and provider diagnostics.
+See [docs/gemini-openai.md](docs/gemini-openai.md) for the Gemini OpenAI-compatible rehearsal path.
 See [docs/stark.md](docs/stark.md) for the STARK/OpenAI-compatible provider profile.

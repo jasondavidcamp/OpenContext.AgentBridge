@@ -130,6 +130,26 @@ public sealed class OpenAiCompatibleModelProviderTests
         Assert.DoesNotContain("secret-token", endpoint);
     }
 
+    [Theory]
+    [InlineData("https://api.openai.com/v1", "https://api.openai.com/v1/chat/completions", "https://api.openai.com/v1/models")]
+    [InlineData("https://stark.test/v1/chat/completions", "https://stark.test/v1/chat/completions", "https://stark.test/v1/models")]
+    [InlineData("https://generativelanguage.googleapis.com/v1beta/openai/", "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", "https://generativelanguage.googleapis.com/v1beta/openai/models")]
+    [InlineData("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", "https://generativelanguage.googleapis.com/v1beta/openai/models")]
+    public void Options_builds_chat_and_models_endpoints(
+        string endpoint,
+        string expectedChatCompletionsEndpoint,
+        string expectedModelsEndpoint)
+    {
+        var options = new OpenAiCompatibleOptions
+        {
+            Endpoint = endpoint,
+            Model = "model"
+        };
+
+        Assert.Equal(expectedChatCompletionsEndpoint, options.GetChatCompletionsEndpoint().ToString());
+        Assert.Equal(expectedModelsEndpoint, options.GetModelsEndpoint().ToString());
+    }
+
     [Fact]
     public async Task ModelCatalogClient_reads_models_endpoint()
     {

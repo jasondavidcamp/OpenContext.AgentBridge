@@ -586,7 +586,7 @@ internal static class ProgramMain
     {
         return provider.ToLowerInvariant() switch
         {
-            "openai" or "openai-compatible" or "stark" => "openai-compatible",
+            "openai" or "openai-compatible" or "stark" or "gemini-openai" or "gemini-openai-compatible" => "openai-compatible",
             var normalized => normalized
         };
     }
@@ -807,8 +807,8 @@ internal static class ProgramMain
             AgentBridge Models
 
             Usage:
-              agentbridge models list [workspace] [--provider openai-compatible|stark] [--endpoint url] [--api-key key] [--api-key-header name] [--api-key-prefix value]
-              agentbridge models test [workspace] [--provider gemini|openai-compatible|stark] [--endpoint url] [--model name] [--api-key key] [--api-key-header name] [--api-key-prefix value] [--message text] [--log-traffic]
+              agentbridge models list [workspace] [--provider openai-compatible|stark|gemini-openai] [--endpoint url] [--api-key key] [--api-key-header name] [--api-key-prefix value]
+              agentbridge models test [workspace] [--provider gemini|openai-compatible|stark|gemini-openai] [--endpoint url] [--model name] [--api-key key] [--api-key-header name] [--api-key-prefix value] [--message text] [--log-traffic]
             """);
     }
 
