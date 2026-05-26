@@ -16,7 +16,7 @@ The model must return exactly one JSON object per turn.
 }
 ```
 
-AgentBridge executes the tool, stores the tool call, adds a `TOOL_RESULT` message to the conversation, and calls the model again.
+AgentBridge executes the tool, stores the full tool call record for audit/debugging, adds a compact `TOOL_RESULT` message to the conversation, and calls the model again. Large tool results are shown to the model as a head-and-tail preview with the middle omitted so command output and file reads do not consume the whole chat budget.
 
 ## Final Answer
 

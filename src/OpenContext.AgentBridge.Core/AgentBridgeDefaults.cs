@@ -15,4 +15,5 @@ public static class AgentBridgeDefaults
     public const string DefaultOpenAiCompatibleApiKeyPrefix = "Bearer";
     public const string DefaultExecutor = "host";
     public const int DefaultMaxIterations = 8;
+    public const int DefaultMaxToolObservationCharacters = 8_000;
 }

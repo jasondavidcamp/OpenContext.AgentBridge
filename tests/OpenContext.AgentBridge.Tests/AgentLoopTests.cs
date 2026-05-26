@@ -119,6 +119,64 @@ public sealed class AgentLoopTests
         }
     }
 
+    [Fact]
+    public async Task RunAsync_compacts_large_tool_observation_before_next_model_turn()
+    {
+        var root = CreateTempDirectory();
+
+        try
+        {
+            var fileContent = "BEGIN-" +
+                new string('a', 1_000) +
+                "MIDDLE-SENTINEL" +
+                new string('z', 1_000) +
+                "-END";
+            await File.WriteAllTextAsync(Path.Combine(root, "large.txt"), fileContent);
+
+            var workspace = WorkspaceContext.FromPath(root);
+            workspace.EnsureLocalState();
+
+            var store = new SqliteConversationStore(workspace.ConversationDatabasePath);
+            await store.InitializeAsync();
+            var conversationId = await store.CreateConversationAsync(workspace.RootPath);
+            await store.AppendMessageAsync(
+                conversationId,
+                new AgentMessage("user", "Read the large file.", DateTimeOffset.UtcNow));
+
+            var provider = new QueueModelProvider(
+                """{"type":"tool","tool":"read_file","arguments":{"path":"large.txt","max_chars":50000}}""",
+                """{"type":"final","message":"Done."}""");
+            var loop = new AgentLoop(
+                provider,
+                store,
+                new ToolRegistry(BuiltInTools.CreateDefault()));
+
+            var result = await loop.RunAsync(
+                conversationId,
+                workspace,
+                new HostWorkspaceExecutor(),
+                Array.Empty<OpenContext.AgentBridge.Core.Skills.Skill>(),
+                new AgentLoopOptions(MaxToolObservationCharacters: 600));
+
+            var toolCall = Assert.Single(result.ToolCalls);
+            Assert.Contains("MIDDLE-SENTINEL", toolCall.ResultContent);
+            Assert.Equal(2, provider.Requests.Count);
+
+            var observation = Assert.Single(provider.Requests[1].Messages
+                .Where(message => message.Content.StartsWith("TOOL_RESULT", StringComparison.Ordinal)));
+
+            Assert.Contains("[tool result truncated from", observation.Content);
+            Assert.Contains("BEGIN-", observation.Content);
+            Assert.Contains("-END", observation.Content);
+            Assert.DoesNotContain("MIDDLE-SENTINEL", observation.Content);
+            Assert.True(observation.Content.Length < fileContent.Length);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
 
     private sealed class ListProgress : IProgress<AgentProgressEvent>
     {
@@ -141,10 +199,14 @@ public sealed class AgentLoopTests
 
         public string Name => "queue";
 
+        public List<AgentTurnRequest> Requests { get; } = new();
+
         public Task<AgentTurnResponse> CompleteAsync(
             AgentTurnRequest request,
             CancellationToken cancellationToken = default)
         {
+            Requests.Add(request);
+
             return Task.FromResult(new AgentTurnResponse(_responses.Dequeue()));
         }
     }

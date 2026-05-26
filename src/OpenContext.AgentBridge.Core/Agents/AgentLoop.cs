@@ -135,7 +135,10 @@ public sealed class AgentLoop
             await _conversationStore
                 .AppendMessageAsync(
                     conversationId,
-                    new AgentMessage("user", FormatToolObservation(directive, result), DateTimeOffset.UtcNow),
+                    new AgentMessage(
+                        "user",
+                        FormatToolObservation(directive, result, options.MaxToolObservationCharacters),
+                        DateTimeOffset.UtcNow),
                     cancellationToken)
                 .ConfigureAwait(false);
         }
@@ -180,18 +183,45 @@ public sealed class AgentLoop
         }
     }
 
-    private static string FormatToolObservation(AgentDirective directive, ToolResult result)
+    private static string FormatToolObservation(
+        AgentDirective directive,
+        ToolResult result,
+        int maxContentCharacters)
     {
+        var content = CompactToolObservationContent(result.Content, maxContentCharacters);
+
         return $"""
             TOOL_RESULT
             tool: {directive.ToolName}
             success: {result.IsSuccess}
             arguments: {directive.Arguments.ToJsonString()}
 
-            {result.Content}
+            {content}
 
             Respond with the next JSON object. Use type "tool" for another action or type "final" when finished.
             """;
+    }
+
+    private static string CompactToolObservationContent(string content, int maxCharacters)
+    {
+        if (maxCharacters <= 0 || content.Length <= maxCharacters)
+        {
+            return content;
+        }
+
+        const int minimumMaxCharacters = 200;
+        var effectiveMaxCharacters = Math.Max(maxCharacters, minimumMaxCharacters);
+        var marker = $"{Environment.NewLine}[tool result truncated from {content.Length} to {effectiveMaxCharacters} characters; middle omitted]{Environment.NewLine}";
+        var contentBudget = effectiveMaxCharacters - marker.Length;
+        if (contentBudget <= 0)
+        {
+            return content[..Math.Min(content.Length, effectiveMaxCharacters)];
+        }
+
+        var headCharacters = Math.Max(1, contentBudget / 2);
+        var tailCharacters = Math.Max(1, contentBudget - headCharacters);
+
+        return content[..headCharacters] + marker + content[^tailCharacters..];
     }
 
     private static string FormatInvalidResponseObservation(string response)
