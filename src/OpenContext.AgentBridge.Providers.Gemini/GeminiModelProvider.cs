@@ -103,6 +103,7 @@ public sealed class GeminiModelProvider : IModelProvider
             {toolText}
 
             Use tools to inspect files before modifying them. Keep all paths relative to the workspace unless a tool says otherwise.
+            Prefer apply_patch for targeted edits to existing files. Use write_file only when creating or replacing a whole file is the clearest option.
             After a tool result, either request the next tool action or return a final JSON object.
 
             Loaded skills:

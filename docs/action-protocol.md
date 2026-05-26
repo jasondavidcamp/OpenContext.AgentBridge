@@ -29,6 +29,7 @@ AgentBridge executes the tool, stores the tool call, adds a `TOOL_RESULT` messag
 
 ## Initial Tools
 
+- `apply_patch`: apply a unified diff patch after validating patch paths
 - `list_files`: list files and directories under a workspace path
 - `read_file`: read a text file
 - `search`: search text with ripgrep
@@ -37,4 +38,4 @@ AgentBridge executes the tool, stores the tool call, adds a `TOOL_RESULT` messag
 - `git_status`: show concise git status
 - `git_diff`: show the current git diff
 
-File tools enforce the workspace boundary. `run_command` starts in the workspace root using the selected executor. Use the Docker executor when command isolation is more important than direct host access.
+File tools enforce the workspace boundary. `apply_patch` should be preferred over `write_file` for targeted edits to existing code. `run_command` starts in the workspace root using the selected executor. Use the Docker executor when command isolation is more important than direct host access.

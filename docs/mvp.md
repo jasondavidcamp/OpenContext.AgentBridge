@@ -20,10 +20,10 @@ agentbridge <workspace>
 - Markdown skills loaded from the workspace
 - Git status/diff visibility
 - JSON action loop for tool execution
+- Patch-based code editing
 
 ## Next Decisions
 
-- Patch application strategy
 - Skill manifest format
 - Long-running task model
 - Web or desktop UI after the CLI is useful

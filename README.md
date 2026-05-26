@@ -92,6 +92,7 @@ dotnet run --project src/OpenContext.AgentBridge.Cli -- ask . --executor host "S
 
 Starter tools:
 
+- `apply_patch`
 - `list_files`
 - `read_file`
 - `search`

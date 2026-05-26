@@ -6,6 +6,7 @@ public static class BuiltInTools
     {
         return new IAgentTool[]
         {
+            new ApplyPatchTool(),
             new GitDiffTool(),
             new GitStatusTool(),
             new ListFilesTool(),
