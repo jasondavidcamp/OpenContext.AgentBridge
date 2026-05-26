@@ -22,6 +22,10 @@ public sealed class GitDiffTool : IAgentTool
             var resolved = context.Workspace.ResolvePath(path);
             arguments.Add(ToToolPath(Path.GetRelativePath(context.Workspace.RootPath, resolved)));
         }
+        else
+        {
+            arguments.Add(".");
+        }
 
         var result = await context.Executor.RunAsync(
             context.Workspace,

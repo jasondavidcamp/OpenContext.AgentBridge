@@ -38,4 +38,8 @@ AgentBridge executes the tool, stores the tool call, adds a `TOOL_RESULT` messag
 - `git_status`: show concise git status
 - `git_diff`: show the current git diff
 
-File tools enforce the workspace boundary. `apply_patch` should be preferred over `write_file` for targeted edits to existing code. `run_command` starts in the workspace root using the selected executor. Use the Docker executor when command isolation is more important than direct host access.
+File tools enforce the workspace boundary. `apply_patch` should be preferred over `write_file` for targeted edits to existing code. `git_status` and `git_diff` are scoped to the workspace path, even when the workspace is a subdirectory of a larger repository. `run_command` starts in the workspace root using the selected executor. Use the Docker executor when command isolation is more important than direct host access.
+
+## Parser Recovery
+
+AgentBridge accepts a JSON object directly, inside a fenced code block, or embedded in otherwise harmless prose. If no valid directive can be parsed, the response is stored and AgentBridge adds a `MODEL_RESPONSE_PARSE_ERROR` observation asking the model to retry with exactly one JSON object.

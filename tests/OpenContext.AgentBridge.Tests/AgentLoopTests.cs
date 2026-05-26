@@ -73,6 +73,53 @@ public sealed class AgentLoopTests
         return path;
     }
 
+    [Fact]
+    public async Task RunAsync_recovers_from_invalid_model_response()
+    {
+        var root = CreateTempDirectory();
+
+        try
+        {
+            var workspace = WorkspaceContext.FromPath(root);
+            workspace.EnsureLocalState();
+
+            var store = new SqliteConversationStore(workspace.ConversationDatabasePath);
+            await store.InitializeAsync();
+            var conversationId = await store.CreateConversationAsync(workspace.RootPath);
+            await store.AppendMessageAsync(
+                conversationId,
+                new AgentMessage("user", "Say done.", DateTimeOffset.UtcNow));
+
+            var provider = new QueueModelProvider(
+                "Sure, I can do that.",
+                """{"type":"final","message":"Done."}""");
+            var loop = new AgentLoop(
+                provider,
+                store,
+                new ToolRegistry(BuiltInTools.CreateDefault()));
+            var progress = new ListProgress();
+
+            var result = await loop.RunAsync(
+                conversationId,
+                workspace,
+                new HostWorkspaceExecutor(),
+                Array.Empty<OpenContext.AgentBridge.Core.Skills.Skill>(),
+                new AgentLoopOptions(8, progress));
+
+            var messages = await store.ReadMessagesAsync(conversationId);
+
+            Assert.Equal("Done.", result.FinalMessage);
+            Assert.Equal(2, result.Turns);
+            Assert.Contains(messages, message => message.Content.StartsWith("MODEL_RESPONSE_PARSE_ERROR", StringComparison.Ordinal));
+            Assert.Contains(progress.Events, value => value.Kind == AgentProgressKind.InvalidModelResponse);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+
     private sealed class ListProgress : IProgress<AgentProgressEvent>
     {
         public List<AgentProgressEvent> Events { get; } = new();

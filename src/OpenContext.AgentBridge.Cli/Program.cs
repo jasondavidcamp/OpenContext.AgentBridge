@@ -696,7 +696,7 @@ internal static class ProgramMain
 
         var gitStatus = await executor.RunAsync(
             workspace,
-            CommandRequest.Create("git", new[] { "status", "--short" }, TimeSpan.FromSeconds(30)));
+            CommandRequest.Create("git", new[] { "status", "--short", "--", "." }, TimeSpan.FromSeconds(30)));
         if (gitStatus.ExitCode == 0 && !string.IsNullOrWhiteSpace(gitStatus.StandardOutput))
         {
             Console.WriteLine("Changed files:");
@@ -1121,6 +1121,9 @@ internal static class ProgramMain
             {
                 case AgentProgressKind.ModelRequest:
                     Console.WriteLine($"[turn {value.Turn}] thinking...");
+                    break;
+                case AgentProgressKind.InvalidModelResponse:
+                    Console.WriteLine($"[turn {value.Turn}] invalid model response: {value.Preview}");
                     break;
                 case AgentProgressKind.ToolRequested:
                     Console.WriteLine($"[turn {value.Turn}] tool {value.ToolName}: {SummarizeArguments(value.ToolName ?? string.Empty, value.ArgumentsJson ?? "{}")}");

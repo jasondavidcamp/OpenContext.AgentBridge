@@ -16,7 +16,7 @@ public sealed class GitStatusTool : IAgentTool
     {
         var result = await context.Executor.RunAsync(
             context.Workspace,
-            CommandRequest.Create("git", new[] { "status", "--short" }, TimeSpan.FromSeconds(30)),
+            CommandRequest.Create("git", new[] { "status", "--short", "--", "." }, TimeSpan.FromSeconds(30)),
             cancellationToken);
 
         return result.ExitCode == 0

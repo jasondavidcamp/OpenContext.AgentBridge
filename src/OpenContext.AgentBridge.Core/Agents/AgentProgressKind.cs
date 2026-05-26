@@ -4,6 +4,7 @@ public enum AgentProgressKind
 {
     ModelRequest,
     ModelResponse,
+    InvalidModelResponse,
     ToolRequested,
     ToolCompleted,
     FinalAnswer,

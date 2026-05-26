@@ -71,16 +71,19 @@ public sealed class AgentLoop
             if (!AgentResponseParser.TryParse(response.Content, out var directive))
             {
                 options.Progress?.Report(new AgentProgressEvent(
-                    AgentProgressKind.FinalAnswer,
+                    AgentProgressKind.InvalidModelResponse,
                     turn,
-                    "Final answer received.",
+                    "Model response did not match the action protocol.",
                     Preview: Preview(response.Content)));
 
-                return new AgentLoopResult(
-                    response.Content,
-                    turn,
-                    StoppedBecause.FinalAnswer,
-                    await ReadToolCallsAsync(conversationId, cancellationToken).ConfigureAwait(false));
+                await _conversationStore
+                    .AppendMessageAsync(
+                        conversationId,
+                        new AgentMessage("user", FormatInvalidResponseObservation(response.Content), DateTimeOffset.UtcNow),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                continue;
             }
 
             if (string.Equals(directive.Type, "final", StringComparison.OrdinalIgnoreCase))
@@ -188,6 +191,25 @@ public sealed class AgentLoop
             {result.Content}
 
             Respond with the next JSON object. Use type "tool" for another action or type "final" when finished.
+            """;
+    }
+
+    private static string FormatInvalidResponseObservation(string response)
+    {
+        const string toolExample = """{"type":"tool","tool":"read_file","arguments":{"path":"README.md"}}""";
+        const string finalExample = """{"type":"final","message":"Short summary of the result."}""";
+
+        return $"""
+            MODEL_RESPONSE_PARSE_ERROR
+            The previous response could not be parsed as an AgentBridge action.
+
+            Response preview:
+            {Preview(response, 1_200)}
+
+            Respond with exactly one JSON object and no surrounding prose.
+            Use one of these forms:
+            {toolExample}
+            {finalExample}
             """;
     }
 

@@ -157,5 +157,6 @@ Starter tools:
 
 See [docs/action-protocol.md](docs/action-protocol.md) for the current protocol.
 See [docs/configuration.md](docs/configuration.md) for configuration and provider diagnostics.
+See [docs/dogfood.md](docs/dogfood.md) for safe public-endpoint dogfooding.
 See [docs/gemini-openai.md](docs/gemini-openai.md) for the Gemini OpenAI-compatible rehearsal path.
 See [docs/stark.md](docs/stark.md) for the STARK/OpenAI-compatible provider profile.

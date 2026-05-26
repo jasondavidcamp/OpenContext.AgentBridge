@@ -14,57 +14,54 @@ public static class AgentResponseParser
             return false;
         }
 
-        var payload = ExtractJsonPayload(content);
-        if (payload is null)
+        foreach (var payload in ExtractJsonPayloads(content))
         {
-            return false;
-        }
-
-        try
-        {
-            var node = JsonNode.Parse(payload)?.AsObject();
-            if (node is null)
+            try
             {
-                return false;
-            }
-
-            var type = node["type"]?.GetValue<string>();
-            if (string.Equals(type, "final", StringComparison.OrdinalIgnoreCase))
-            {
-                directive = new AgentDirective(
-                    "final",
-                    null,
-                    new JsonObject(),
-                    node["message"]?.GetValue<string>() ?? string.Empty);
-                return true;
-            }
-
-            if (string.Equals(type, "tool", StringComparison.OrdinalIgnoreCase))
-            {
-                var toolName = node["tool"]?.GetValue<string>();
-                if (string.IsNullOrWhiteSpace(toolName))
+                var node = JsonNode.Parse(payload)?.AsObject();
+                if (node is null)
                 {
-                    return false;
+                    continue;
                 }
 
-                var arguments = node["arguments"]?.DeepClone() as JsonObject ?? new JsonObject();
-                directive = new AgentDirective("tool", toolName, arguments, null);
-                return true;
+                var type = node["type"]?.GetValue<string>();
+                if (string.Equals(type, "final", StringComparison.OrdinalIgnoreCase))
+                {
+                    directive = new AgentDirective(
+                        "final",
+                        null,
+                        new JsonObject(),
+                        node["message"]?.GetValue<string>() ?? string.Empty);
+                    return true;
+                }
+
+                if (string.Equals(type, "tool", StringComparison.OrdinalIgnoreCase))
+                {
+                    var toolName = node["tool"]?.GetValue<string>();
+                    if (string.IsNullOrWhiteSpace(toolName))
+                    {
+                        continue;
+                    }
+
+                    var arguments = node["arguments"]?.DeepClone() as JsonObject ?? new JsonObject();
+                    directive = new AgentDirective("tool", toolName, arguments, null);
+                    return true;
+                }
             }
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
-        catch (InvalidOperationException)
-        {
-            return false;
+            catch (JsonException)
+            {
+                continue;
+            }
+            catch (InvalidOperationException)
+            {
+                continue;
+            }
         }
 
         return false;
     }
 
-    private static string? ExtractJsonPayload(string content)
+    private static IEnumerable<string> ExtractJsonPayloads(string content)
     {
         var trimmed = content.Trim();
 
@@ -75,23 +72,70 @@ public static class AgentResponseParser
 
             if (firstLineEnd >= 0 && closingFence > firstLineEnd)
             {
-                return trimmed[(firstLineEnd + 1)..closingFence].Trim();
+                yield return trimmed[(firstLineEnd + 1)..closingFence].Trim();
             }
         }
 
         if (trimmed.StartsWith('{') && trimmed.EndsWith('}'))
         {
-            return trimmed;
+            yield return trimmed;
         }
 
-        var firstBrace = trimmed.IndexOf('{');
-        var lastBrace = trimmed.LastIndexOf('}');
-
-        if (firstBrace >= 0 && lastBrace > firstBrace)
+        foreach (var payload in ExtractBalancedJsonObjects(trimmed))
         {
-            return trimmed[firstBrace..(lastBrace + 1)];
+            yield return payload;
         }
+    }
 
-        return null;
+    private static IEnumerable<string> ExtractBalancedJsonObjects(string content)
+    {
+        for (var start = content.IndexOf('{'); start >= 0 && start < content.Length; start = content.IndexOf('{', start + 1))
+        {
+            var depth = 0;
+            var inString = false;
+            var escaped = false;
+
+            for (var index = start; index < content.Length; index++)
+            {
+                var current = content[index];
+                if (inString)
+                {
+                    if (escaped)
+                    {
+                        escaped = false;
+                    }
+                    else if (current == '\\')
+                    {
+                        escaped = true;
+                    }
+                    else if (current == '"')
+                    {
+                        inString = false;
+                    }
+
+                    continue;
+                }
+
+                if (current == '"')
+                {
+                    inString = true;
+                    continue;
+                }
+
+                if (current == '{')
+                {
+                    depth++;
+                }
+                else if (current == '}')
+                {
+                    depth--;
+                    if (depth == 0)
+                    {
+                        yield return content[start..(index + 1)];
+                        break;
+                    }
+                }
+            }
+        }
     }
 }
