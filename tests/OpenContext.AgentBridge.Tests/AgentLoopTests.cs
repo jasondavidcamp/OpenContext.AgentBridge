@@ -37,12 +37,14 @@ public sealed class AgentLoopTests
                 provider,
                 store,
                 new ToolRegistry(BuiltInTools.CreateDefault()));
+            var progress = new ListProgress();
 
             var result = await loop.RunAsync(
                 conversationId,
                 workspace,
                 new HostWorkspaceExecutor(),
-                Array.Empty<OpenContext.AgentBridge.Core.Skills.Skill>());
+                Array.Empty<OpenContext.AgentBridge.Core.Skills.Skill>(),
+                new AgentLoopOptions(8, progress));
 
             var toolCalls = await store.ReadToolCallsAsync(conversationId);
             var messages = await store.ReadMessagesAsync(conversationId);
@@ -52,7 +54,11 @@ public sealed class AgentLoopTests
             Assert.Equal("read_file", toolCall.ToolName);
             Assert.True(toolCall.IsSuccess);
             Assert.Contains("AgentBridge", toolCall.ResultContent);
+            var resultToolCall = Assert.Single(result.ToolCalls);
+            Assert.Equal("read_file", resultToolCall.ToolName);
             Assert.Contains(messages, message => message.Content.StartsWith("TOOL_RESULT", StringComparison.Ordinal));
+            Assert.Contains(progress.Events, value => value.Kind == AgentProgressKind.ToolRequested && value.ToolName == "read_file");
+            Assert.Contains(progress.Events, value => value.Kind == AgentProgressKind.ToolCompleted && value.IsSuccess == true);
         }
         finally
         {
@@ -65,6 +71,16 @@ public sealed class AgentLoopTests
         var path = Path.Combine(Path.GetTempPath(), $"agentbridge-tests-{Guid.NewGuid():N}");
         Directory.CreateDirectory(path);
         return path;
+    }
+
+    private sealed class ListProgress : IProgress<AgentProgressEvent>
+    {
+        public List<AgentProgressEvent> Events { get; } = new();
+
+        public void Report(AgentProgressEvent value)
+        {
+            Events.Add(value);
+        }
     }
 
     private sealed class QueueModelProvider : IModelProvider

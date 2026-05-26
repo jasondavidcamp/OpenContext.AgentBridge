@@ -36,6 +36,11 @@ public sealed class AgentLoop
 
         for (var turn = 1; turn <= options.MaxToolIterations; turn++)
         {
+            options.Progress?.Report(new AgentProgressEvent(
+                AgentProgressKind.ModelRequest,
+                turn,
+                "Asking model for next action."));
+
             var messages = await _conversationStore
                 .ReadMessagesAsync(conversationId, cancellationToken)
                 .ConfigureAwait(false);
@@ -50,6 +55,12 @@ public sealed class AgentLoop
                     cancellationToken)
                 .ConfigureAwait(false);
 
+            options.Progress?.Report(new AgentProgressEvent(
+                AgentProgressKind.ModelResponse,
+                turn,
+                "Model response received.",
+                Preview: Preview(response.Content)));
+
             await _conversationStore
                 .AppendMessageAsync(
                     conversationId,
@@ -59,13 +70,41 @@ public sealed class AgentLoop
 
             if (!AgentResponseParser.TryParse(response.Content, out var directive))
             {
-                return new AgentLoopResult(response.Content, turn, StoppedBecause.FinalAnswer);
+                options.Progress?.Report(new AgentProgressEvent(
+                    AgentProgressKind.FinalAnswer,
+                    turn,
+                    "Final answer received.",
+                    Preview: Preview(response.Content)));
+
+                return new AgentLoopResult(
+                    response.Content,
+                    turn,
+                    StoppedBecause.FinalAnswer,
+                    await ReadToolCallsAsync(conversationId, cancellationToken).ConfigureAwait(false));
             }
 
             if (string.Equals(directive.Type, "final", StringComparison.OrdinalIgnoreCase))
             {
-                return new AgentLoopResult(directive.Message ?? response.Content, turn, StoppedBecause.FinalAnswer);
+                var finalMessage = directive.Message ?? response.Content;
+                options.Progress?.Report(new AgentProgressEvent(
+                    AgentProgressKind.FinalAnswer,
+                    turn,
+                    "Final answer received.",
+                    Preview: Preview(finalMessage)));
+
+                return new AgentLoopResult(
+                    finalMessage,
+                    turn,
+                    StoppedBecause.FinalAnswer,
+                    await ReadToolCallsAsync(conversationId, cancellationToken).ConfigureAwait(false));
             }
+
+            options.Progress?.Report(new AgentProgressEvent(
+                AgentProgressKind.ToolRequested,
+                turn,
+                $"Tool requested: {directive.ToolName}",
+                directive.ToolName,
+                directive.Arguments.ToJsonString()));
 
             var result = await ExecuteToolAsync(context, directive, cancellationToken).ConfigureAwait(false);
 
@@ -81,6 +120,15 @@ public sealed class AgentLoop
                     cancellationToken)
                 .ConfigureAwait(false);
 
+            options.Progress?.Report(new AgentProgressEvent(
+                AgentProgressKind.ToolCompleted,
+                turn,
+                result.IsSuccess ? "Tool completed." : "Tool failed.",
+                directive.ToolName,
+                directive.Arguments.ToJsonString(),
+                result.IsSuccess,
+                Preview(result.Content)));
+
             await _conversationStore
                 .AppendMessageAsync(
                     conversationId,
@@ -90,6 +138,11 @@ public sealed class AgentLoop
         }
 
         var message = $"Stopped after {options.MaxToolIterations} tool iterations.";
+        options.Progress?.Report(new AgentProgressEvent(
+            AgentProgressKind.MaxIterations,
+            options.MaxToolIterations,
+            message));
+
         await _conversationStore
             .AppendMessageAsync(
                 conversationId,
@@ -97,7 +150,11 @@ public sealed class AgentLoop
                 cancellationToken)
             .ConfigureAwait(false);
 
-        return new AgentLoopResult(message, options.MaxToolIterations, StoppedBecause.MaxIterations);
+        return new AgentLoopResult(
+            message,
+            options.MaxToolIterations,
+            StoppedBecause.MaxIterations,
+            await ReadToolCallsAsync(conversationId, cancellationToken).ConfigureAwait(false));
     }
 
     private async Task<ToolResult> ExecuteToolAsync(
@@ -132,5 +189,23 @@ public sealed class AgentLoop
 
             Respond with the next JSON object. Use type "tool" for another action or type "final" when finished.
             """;
+    }
+
+    private Task<IReadOnlyList<ToolCallRecord>> ReadToolCallsAsync(
+        string conversationId,
+        CancellationToken cancellationToken)
+    {
+        return _conversationStore.ReadToolCallsAsync(conversationId, cancellationToken);
+    }
+
+    private static string Preview(string value, int maxCharacters = 400)
+    {
+        var oneLine = value
+            .ReplaceLineEndings(" ")
+            .Trim();
+
+        return oneLine.Length <= maxCharacters
+            ? oneLine
+            : oneLine[..maxCharacters] + "...";
     }
 }

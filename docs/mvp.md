@@ -21,6 +21,7 @@ agentbridge <workspace>
 - Git status/diff visibility
 - JSON action loop for tool execution
 - Patch-based code editing
+- Observable agent runs with persisted conversations
 
 ## Next Decisions
 

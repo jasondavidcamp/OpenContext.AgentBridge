@@ -1,3 +1,4 @@
+using System.Text.Json;
 using OpenContext.AgentBridge.Core;
 using OpenContext.AgentBridge.Core.Agents;
 using OpenContext.AgentBridge.Core.Conversation;
@@ -30,6 +31,7 @@ internal static class ProgramMain
                 "run" => await RunCommandAsync(args[1..]),
                 "skills" => await ListSkillsAsync(args[1..]),
                 "ask" => await AskAsync(args[1..]),
+                "conversation" or "conversations" => await ConversationsAsync(args[1..]),
                 _ => UnknownCommand(args[0])
             };
         }
@@ -142,7 +144,7 @@ internal static class ProgramMain
     {
         if (args.Length < 2)
         {
-            Console.Error.WriteLine("Usage: agentbridge ask <workspace> [--executor host|docker] [--max-iterations n] <message>");
+            Console.Error.WriteLine("Usage: agentbridge ask <workspace> [--new|--conversation id] [--executor host|docker] [--max-iterations n] <message>");
             return 1;
         }
 
@@ -153,8 +155,7 @@ internal static class ProgramMain
         var store = new SqliteConversationStore(workspace.ConversationDatabasePath);
         await store.InitializeAsync();
 
-        var conversation = (await store.ListConversationsAsync(workspace.RootPath)).FirstOrDefault();
-        var conversationId = conversation?.Id ?? await store.CreateConversationAsync(workspace.RootPath);
+        var conversationId = await ResolveConversationIdAsync(store, workspace, options);
 
         await store.AppendMessageAsync(
             conversationId,
@@ -177,14 +178,125 @@ internal static class ProgramMain
             provider,
             store,
             new ToolRegistry(BuiltInTools.CreateDefault()));
+        Console.WriteLine($"Conversation: {conversationId}");
+        Console.WriteLine($"Workspace: {workspace.RootPath}");
+        Console.WriteLine($"Executor: {executor.Name}");
+        Console.WriteLine();
+
         var result = await loop.RunAsync(
             conversationId,
             workspace,
             executor,
             skills,
-            new AgentLoopOptions(options.MaxIterations));
+            new AgentLoopOptions(options.MaxIterations, new ConsoleAgentProgress()));
 
+        Console.WriteLine();
+        Console.WriteLine("Final:");
         Console.WriteLine(result.FinalMessage);
+        Console.WriteLine();
+
+        await WriteRunSummaryAsync(workspace, executor, conversationId, result);
+        return 0;
+    }
+
+    private static async Task<int> ConversationsAsync(string[] args)
+    {
+        if (args.Length == 0 || IsHelp(args[0]))
+        {
+            WriteConversationsHelp();
+            return 0;
+        }
+
+        return args[0].ToLowerInvariant() switch
+        {
+            "list" => await ListConversationsAsync(args[1..]),
+            "show" => await ShowConversationAsync(args[1..]),
+            _ => UnknownConversationsCommand(args[0])
+        };
+    }
+
+    private static async Task<int> ListConversationsAsync(string[] args)
+    {
+        var workspace = GetWorkspace(args);
+        workspace.EnsureLocalState();
+
+        var store = new SqliteConversationStore(workspace.ConversationDatabasePath);
+        await store.InitializeAsync();
+
+        var conversations = await store.ListConversationsAsync(workspace.RootPath);
+        if (conversations.Count == 0)
+        {
+            Console.WriteLine("No conversations found.");
+            return 0;
+        }
+
+        foreach (var conversation in conversations)
+        {
+            Console.WriteLine($"{conversation.Id}  updated {conversation.UpdatedAt.LocalDateTime:g}  created {conversation.CreatedAt.LocalDateTime:g}");
+        }
+
+        return 0;
+    }
+
+    private static async Task<int> ShowConversationAsync(string[] args)
+    {
+        if (args.Length == 0)
+        {
+            Console.Error.WriteLine("Usage: agentbridge conversations show [workspace] <conversation-id>");
+            return 1;
+        }
+
+        var workspace = args.Length == 1
+            ? WorkspaceContext.FromPath(Directory.GetCurrentDirectory())
+            : WorkspaceContext.FromPath(args[0]);
+        var conversationId = args.Length == 1
+            ? args[0]
+            : args[1];
+        workspace.EnsureLocalState();
+
+        var store = new SqliteConversationStore(workspace.ConversationDatabasePath);
+        await store.InitializeAsync();
+
+        var conversation = (await store.ListConversationsAsync(workspace.RootPath))
+            .FirstOrDefault(summary => string.Equals(summary.Id, conversationId, StringComparison.OrdinalIgnoreCase));
+        if (conversation is null)
+        {
+            Console.Error.WriteLine($"Conversation not found in workspace: {conversationId}");
+            return 1;
+        }
+
+        var messages = await store.ReadMessagesAsync(conversation.Id);
+        var toolCalls = await store.ReadToolCallsAsync(conversation.Id);
+
+        Console.WriteLine($"Conversation: {conversation.Id}");
+        Console.WriteLine($"Workspace: {conversation.WorkspaceRoot}");
+        Console.WriteLine($"Created: {conversation.CreatedAt.LocalDateTime:g}");
+        Console.WriteLine($"Updated: {conversation.UpdatedAt.LocalDateTime:g}");
+        Console.WriteLine();
+
+        Console.WriteLine("Messages:");
+        foreach (var message in messages)
+        {
+            Console.WriteLine($"[{message.CreatedAt.LocalDateTime:g}] {message.Role}");
+            Console.WriteLine(Preview(message.Content, 1_200));
+            Console.WriteLine();
+        }
+
+        Console.WriteLine("Tool Calls:");
+        if (toolCalls.Count == 0)
+        {
+            Console.WriteLine("No tool calls.");
+            return 0;
+        }
+
+        foreach (var toolCall in toolCalls)
+        {
+            Console.WriteLine($"[{toolCall.CreatedAt.LocalDateTime:g}] {toolCall.ToolName} {(toolCall.IsSuccess ? "ok" : "failed")}");
+            Console.WriteLine($"Arguments: {SummarizeArguments(toolCall.ToolName, toolCall.ArgumentsJson)}");
+            Console.WriteLine(Preview(toolCall.ResultContent, 800));
+            Console.WriteLine();
+        }
+
         return 0;
     }
 
@@ -218,11 +330,97 @@ internal static class ProgramMain
         });
     }
 
+    private static async Task<string> ResolveConversationIdAsync(
+        IConversationStore store,
+        WorkspaceContext workspace,
+        AskOptions options)
+    {
+        if (options.StartNew && !string.IsNullOrWhiteSpace(options.ConversationId))
+        {
+            throw new ArgumentException("Use either --new or --conversation, not both.");
+        }
+
+        if (options.StartNew)
+        {
+            return await store.CreateConversationAsync(workspace.RootPath);
+        }
+
+        var conversations = await store.ListConversationsAsync(workspace.RootPath);
+
+        if (!string.IsNullOrWhiteSpace(options.ConversationId))
+        {
+            var existing = conversations.FirstOrDefault(conversation =>
+                string.Equals(conversation.Id, options.ConversationId, StringComparison.OrdinalIgnoreCase));
+
+            if (existing is null)
+            {
+                throw new ArgumentException($"Conversation not found in workspace: {options.ConversationId}");
+            }
+
+            return existing.Id;
+        }
+
+        return conversations.FirstOrDefault()?.Id
+            ?? await store.CreateConversationAsync(workspace.RootPath);
+    }
+
+    private static async Task WriteRunSummaryAsync(
+        WorkspaceContext workspace,
+        IWorkspaceExecutor executor,
+        string conversationId,
+        AgentLoopResult result)
+    {
+        var succeeded = result.ToolCalls.Count(toolCall => toolCall.IsSuccess);
+        var failed = result.ToolCalls.Count - succeeded;
+
+        Console.WriteLine("Run Summary:");
+        Console.WriteLine($"Conversation: {conversationId}");
+        Console.WriteLine($"Turns: {result.Turns}");
+        Console.WriteLine($"Stopped because: {result.StoppedBecause}");
+        Console.WriteLine($"Tool calls: {result.ToolCalls.Count} ({succeeded} ok, {failed} failed)");
+
+        var commands = result.ToolCalls
+            .Where(toolCall => string.Equals(toolCall.ToolName, "run_command", StringComparison.OrdinalIgnoreCase))
+            .Select(toolCall => SummarizeArguments(toolCall.ToolName, toolCall.ArgumentsJson))
+            .Where(summary => !string.IsNullOrWhiteSpace(summary))
+            .ToArray();
+        if (commands.Length > 0)
+        {
+            Console.WriteLine("Commands run:");
+            foreach (var command in commands)
+            {
+                Console.WriteLine($"  {command}");
+            }
+        }
+
+        var gitStatus = await executor.RunAsync(
+            workspace,
+            CommandRequest.Create("git", new[] { "status", "--short" }, TimeSpan.FromSeconds(30)));
+        if (gitStatus.ExitCode == 0 && !string.IsNullOrWhiteSpace(gitStatus.StandardOutput))
+        {
+            Console.WriteLine("Changed files:");
+            foreach (var line in gitStatus.StandardOutput.Split(
+                         Environment.NewLine,
+                         StringSplitOptions.RemoveEmptyEntries))
+            {
+                Console.WriteLine($"  {line}");
+            }
+        }
+    }
+
     private static int UnknownCommand(string command)
     {
         Console.Error.WriteLine($"Unknown command: {command}");
         Console.Error.WriteLine();
         WriteHelp();
+        return 1;
+    }
+
+    private static int UnknownConversationsCommand(string command)
+    {
+        Console.Error.WriteLine($"Unknown conversations command: {command}");
+        Console.Error.WriteLine();
+        WriteConversationsHelp();
         return 1;
     }
 
@@ -241,7 +439,9 @@ internal static class ProgramMain
               agentbridge doctor [workspace] [--executor host|docker]
               agentbridge run [workspace] [--executor host|docker] [--timeout-minutes n] -- <command>
               agentbridge skills [workspace]
-              agentbridge ask <workspace> [--executor host|docker] [--max-iterations n] <message>
+              agentbridge ask <workspace> [--new|--conversation id] [--executor host|docker] [--max-iterations n] <message>
+              agentbridge conversations list [workspace]
+              agentbridge conversations show [workspace] <conversation-id>
 
             Environment:
               AGENTBRIDGE_GEMINI_API_KEY
@@ -249,6 +449,62 @@ internal static class ProgramMain
               AGENTBRIDGE_GEMINI_MODEL
               AGENTBRIDGE_DOCKER_IMAGE
             """);
+    }
+
+    private static void WriteConversationsHelp()
+    {
+        Console.WriteLine("""
+            AgentBridge Conversations
+
+            Usage:
+              agentbridge conversations list [workspace]
+              agentbridge conversations show [workspace] <conversation-id>
+            """);
+    }
+
+    private static string SummarizeArguments(string toolName, string argumentsJson)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(argumentsJson);
+            var root = document.RootElement;
+
+            if (string.Equals(toolName, "run_command", StringComparison.OrdinalIgnoreCase)
+                && root.TryGetProperty("command", out var command))
+            {
+                return Preview(command.GetString() ?? string.Empty, 180);
+            }
+
+            if (root.TryGetProperty("path", out var path))
+            {
+                return path.GetString() ?? argumentsJson;
+            }
+
+            if (root.TryGetProperty("query", out var query))
+            {
+                return $"query: {Preview(query.GetString() ?? string.Empty, 120)}";
+            }
+
+            if (root.TryGetProperty("patch", out var patch))
+            {
+                return $"patch: {(patch.GetString() ?? string.Empty).Length} chars";
+            }
+        }
+        catch (JsonException)
+        {
+            return Preview(argumentsJson, 180);
+        }
+
+        return Preview(argumentsJson, 180);
+    }
+
+    private static string Preview(string value, int maxCharacters = 400)
+    {
+        var preview = value.ReplaceLineEndings(" ").Trim();
+
+        return preview.Length <= maxCharacters
+            ? preview
+            : preview[..maxCharacters] + "...";
     }
 
     private sealed record CommandOptions(
@@ -286,6 +542,8 @@ internal static class ProgramMain
         string WorkspacePath,
         string Executor,
         int MaxIterations,
+        bool StartNew,
+        string? ConversationId,
         string Message)
     {
         public static AskOptions Parse(string[] args)
@@ -293,6 +551,8 @@ internal static class ProgramMain
             var workspacePath = args[0];
             var executor = "host";
             var maxIterations = 8;
+            var startNew = false;
+            string? conversationId = null;
             var messageParts = new List<string>();
 
             for (var index = 1; index < args.Length; index++)
@@ -305,6 +565,12 @@ internal static class ProgramMain
                     case "--max-iterations" when index + 1 < args.Length && int.TryParse(args[++index], out var parsed):
                         maxIterations = Math.Clamp(parsed, 1, 20);
                         break;
+                    case "--new":
+                        startNew = true;
+                        break;
+                    case "--conversation" when index + 1 < args.Length:
+                        conversationId = args[++index];
+                        break;
                     default:
                         messageParts.Add(args[index]);
                         break;
@@ -316,7 +582,35 @@ internal static class ProgramMain
                 throw new ArgumentException("An ask message is required.");
             }
 
-            return new AskOptions(workspacePath, executor, maxIterations, string.Join(' ', messageParts));
+            return new AskOptions(
+                workspacePath,
+                executor,
+                maxIterations,
+                startNew,
+                conversationId,
+                string.Join(' ', messageParts));
+        }
+    }
+
+    private sealed class ConsoleAgentProgress : IProgress<AgentProgressEvent>
+    {
+        public void Report(AgentProgressEvent value)
+        {
+            switch (value.Kind)
+            {
+                case AgentProgressKind.ModelRequest:
+                    Console.WriteLine($"[turn {value.Turn}] thinking...");
+                    break;
+                case AgentProgressKind.ToolRequested:
+                    Console.WriteLine($"[turn {value.Turn}] tool {value.ToolName}: {SummarizeArguments(value.ToolName ?? string.Empty, value.ArgumentsJson ?? "{}")}");
+                    break;
+                case AgentProgressKind.ToolCompleted:
+                    Console.WriteLine($"[turn {value.Turn}] tool {value.ToolName} {(value.IsSuccess == true ? "ok" : "failed")}: {value.Preview}");
+                    break;
+                case AgentProgressKind.MaxIterations:
+                    Console.WriteLine($"[turn {value.Turn}] stopped: {value.Message}");
+                    break;
+            }
         }
     }
 }

@@ -89,6 +89,26 @@ dotnet run --project src/OpenContext.AgentBridge.Cli -- ask . --executor host "S
 ```
 
 `ask` now runs a structured action loop. Gemini must return either a tool request or a final answer as JSON, and AgentBridge validates and executes tool requests inside the selected workspace.
+Tool requests are printed as they run, followed by a run summary with tool counts, commands run, and current git changes.
+
+Start a new conversation:
+
+```powershell
+dotnet run --project src/OpenContext.AgentBridge.Cli -- ask . --new "Inspect this repo."
+```
+
+Continue a specific conversation:
+
+```powershell
+dotnet run --project src/OpenContext.AgentBridge.Cli -- ask . --conversation <conversation-id> "Continue."
+```
+
+List and inspect conversations:
+
+```powershell
+dotnet run --project src/OpenContext.AgentBridge.Cli -- conversations list .
+dotnet run --project src/OpenContext.AgentBridge.Cli -- conversations show . <conversation-id>
+```
 
 Starter tools:
 

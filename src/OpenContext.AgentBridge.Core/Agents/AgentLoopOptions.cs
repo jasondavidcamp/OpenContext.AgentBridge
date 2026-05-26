@@ -1,3 +1,5 @@
 namespace OpenContext.AgentBridge.Core.Agents;
 
-public sealed record AgentLoopOptions(int MaxToolIterations = 8);
+public sealed record AgentLoopOptions(
+    int MaxToolIterations = 8,
+    IProgress<AgentProgressEvent>? Progress = null);
