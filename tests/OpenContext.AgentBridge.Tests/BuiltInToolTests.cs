@@ -88,6 +88,94 @@ public sealed class BuiltInToolTests
     }
 
     [Fact]
+    public async Task ApplyPatchTool_normalizes_workspace_prefixed_paths()
+    {
+        var root = CreateTempDirectory();
+
+        try
+        {
+            var workspaceRoot = Path.Combine(root, "examples", "sandbox-project");
+            var sourceDirectory = Path.Combine(workspaceRoot, "SandboxApp");
+            Directory.CreateDirectory(sourceDirectory);
+            var sourcePath = Path.Combine(sourceDirectory, "Program.cs");
+            await File.WriteAllTextAsync(sourcePath, $"one{Environment.NewLine}");
+
+            var workspace = WorkspaceContext.FromPath(workspaceRoot);
+            workspace.EnsureLocalState();
+            var context = new ToolExecutionContext(workspace, new HostWorkspaceExecutor());
+            var directive = new AgentDirective(
+                "tool",
+                "apply_patch",
+                new JsonObject
+                {
+                    ["patch"] = """
+                        diff --git a/examples/sandbox-project/SandboxApp/Program.cs b/examples/sandbox-project/SandboxApp/Program.cs
+                        --- a/examples/sandbox-project/SandboxApp/Program.cs
+                        +++ b/examples/sandbox-project/SandboxApp/Program.cs
+                        @@ -1 +1 @@
+                        -one
+                        +two
+                        """
+                },
+                null);
+
+            var result = await new ApplyPatchTool().ExecuteAsync(context, directive);
+
+            Assert.True(result.IsSuccess, result.Content);
+            Assert.Equal($"two{Environment.NewLine}", await File.ReadAllTextAsync(sourcePath));
+            Assert.Contains("SandboxApp/Program.cs", result.Content);
+            Assert.DoesNotContain("examples/sandbox-project/SandboxApp/Program.cs", result.Content);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ApplyPatchTool_preserves_existing_workspace_relative_paths()
+    {
+        var root = CreateTempDirectory();
+
+        try
+        {
+            var workspaceRoot = Path.Combine(root, "src");
+            var nestedDirectory = Path.Combine(workspaceRoot, "src");
+            Directory.CreateDirectory(nestedDirectory);
+            var sourcePath = Path.Combine(nestedDirectory, "Script.ps1");
+            await File.WriteAllTextAsync(sourcePath, $"one{Environment.NewLine}");
+
+            var workspace = WorkspaceContext.FromPath(workspaceRoot);
+            workspace.EnsureLocalState();
+            var context = new ToolExecutionContext(workspace, new HostWorkspaceExecutor());
+            var directive = new AgentDirective(
+                "tool",
+                "apply_patch",
+                new JsonObject
+                {
+                    ["patch"] = """
+                        diff --git a/src/Script.ps1 b/src/Script.ps1
+                        --- a/src/Script.ps1
+                        +++ b/src/Script.ps1
+                        @@ -1 +1 @@
+                        -one
+                        +two
+                        """
+                },
+                null);
+
+            var result = await new ApplyPatchTool().ExecuteAsync(context, directive);
+
+            Assert.True(result.IsSuccess, result.Content);
+            Assert.Equal($"two{Environment.NewLine}", await File.ReadAllTextAsync(sourcePath));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task ApplyPatchTool_rejects_parent_traversal_paths()
     {
         var root = CreateTempDirectory();
@@ -117,6 +205,45 @@ public sealed class BuiltInToolTests
 
             Assert.False(result.IsSuccess);
             Assert.Contains("escapes the workspace", result.Content);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ApplyPatchTool_failure_includes_retry_guidance()
+    {
+        var root = CreateTempDirectory();
+
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(root, "README.md"), $"one{Environment.NewLine}");
+
+            var workspace = WorkspaceContext.FromPath(root);
+            workspace.EnsureLocalState();
+            var context = new ToolExecutionContext(workspace, new HostWorkspaceExecutor());
+            var directive = new AgentDirective(
+                "tool",
+                "apply_patch",
+                new JsonObject
+                {
+                    ["patch"] = """
+                        diff --git a/README.md b/README.md
+                        --- a/README.md
+                        +++ b/README.md
+                        @@ -1 +1 @@
+                        -missing
+                        +two
+                        """
+                },
+                null);
+
+            var result = await new ApplyPatchTool().ExecuteAsync(context, directive);
+
+            Assert.False(result.IsSuccess);
+            Assert.Contains("retry with paths relative to the workspace root", result.Content);
         }
         finally
         {

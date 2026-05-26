@@ -38,7 +38,7 @@ AgentBridge executes the tool, stores the tool call, adds a `TOOL_RESULT` messag
 - `git_status`: show concise git status
 - `git_diff`: show the current git diff
 
-File tools enforce the workspace boundary. `apply_patch` should be preferred over `write_file` for targeted edits to existing code. `git_status` and `git_diff` are scoped to the workspace path, even when the workspace is a subdirectory of a larger repository. `run_command` starts in the workspace root using the selected executor. Use the Docker executor when command isolation is more important than direct host access.
+File tools enforce the workspace boundary. `apply_patch` should be preferred over `write_file` for targeted edits to existing code. Patch paths should be workspace-relative; AgentBridge also normalizes safe paths that include the active workspace folder prefix, such as `examples/sandbox-project/SandboxApp/Program.cs` when the workspace is already `examples/sandbox-project`. `git_status` and `git_diff` are scoped to the workspace path, even when the workspace is a subdirectory of a larger repository. `run_command` starts in the workspace root using the selected executor. Use the Docker executor when command isolation is more important than direct host access.
 
 ## Parser Recovery
 

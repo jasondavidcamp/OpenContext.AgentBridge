@@ -20,6 +20,7 @@ public sealed class ApplyPatchTool : IAgentTool
             patch += Environment.NewLine;
         }
 
+        patch = PatchPathNormalizer.Normalize(patch, context.Workspace.RootPath);
         var checkOnly = ToolArguments.GetBool(directive.Arguments, "check_only", false);
         var validation = PatchPathValidator.Validate(patch);
 
@@ -84,11 +85,18 @@ public sealed class ApplyPatchTool : IAgentTool
 
         return result.ExitCode == 0
             ? ToolResult.Success(content)
-            : ToolResult.Failure(content);
+            : ToolResult.Failure(content + Environment.NewLine + BuildPatchFailureHint());
     }
 
     private static string ToToolPath(string path)
     {
         return path.Replace(Path.DirectorySeparatorChar, '/');
+    }
+
+    private static string BuildPatchFailureHint()
+    {
+        return """
+            Hint: Patch paths are interpreted relative to the active workspace. Re-read the target file, use exact current context lines, and retry with paths relative to the workspace root.
+            """;
     }
 }
