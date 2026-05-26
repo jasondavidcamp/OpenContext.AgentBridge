@@ -162,7 +162,7 @@ internal static class ProgramMain
     {
         if (args.Length < 2)
         {
-            Console.Error.WriteLine("Usage: agentbridge ask <workspace> [--new|--conversation id] [--executor host|docker] [--max-iterations n] <message>");
+            Console.Error.WriteLine("Usage: agentbridge ask <workspace> [--new|--conversation id] [--executor host|docker] [--max-iterations n] [--skill name|--skills names] <message>");
             return 1;
         }
 
@@ -184,7 +184,7 @@ internal static class ProgramMain
             new AgentBridgeConfigOverrides(
                 DefaultExecutor: options.Executor,
                 MaxIterations: options.MaxIterations));
-        var skills = await LoadSkillsAsync(workspace);
+        var skills = await LoadSkillsAsync(workspace, options.SkillNames);
         var executor = CreateExecutor(config.DefaultExecutor);
 
         using var httpClient = new HttpClient();
@@ -197,6 +197,7 @@ internal static class ProgramMain
         Console.WriteLine($"Conversation: {conversationId}");
         Console.WriteLine($"Workspace: {workspace.RootPath}");
         Console.WriteLine($"Executor: {executor.Name}");
+        Console.WriteLine($"Skills: {FormatSkills(skills)}");
         Console.WriteLine();
 
         var result = await loop.RunAsync(
@@ -520,12 +521,21 @@ internal static class ProgramMain
 
     private static async Task<IReadOnlyList<Skill>> LoadSkillsAsync(WorkspaceContext workspace)
     {
+        return await LoadSkillsAsync(workspace, Array.Empty<string>());
+    }
+
+    private static async Task<IReadOnlyList<Skill>> LoadSkillsAsync(
+        WorkspaceContext workspace,
+        IEnumerable<string> requestedSkills)
+    {
         var loader = new SkillLoader();
-        return await loader.LoadAsync(new[]
+        var skills = await loader.LoadAsync(new[]
         {
             workspace.SkillsPath,
             Path.Combine(workspace.RootPath, AgentBridgeDefaults.SkillsDirectoryName)
         });
+
+        return SkillSelector.Select(skills, requestedSkills);
     }
 
     private static Task<EffectiveAgentBridgeConfig> ReadEffectiveConfigAsync(
@@ -629,6 +639,13 @@ internal static class ProgramMain
         {
             return "<not configured>";
         }
+    }
+
+    private static string FormatSkills(IReadOnlyList<Skill> skills)
+    {
+        return skills.Count == 0
+            ? "none"
+            : string.Join(", ", skills.Select(skill => skill.Name));
     }
 
     private static async Task<string> ResolveConversationIdAsync(
@@ -756,7 +773,7 @@ internal static class ProgramMain
               agentbridge doctor [workspace] [--executor host|docker]
               agentbridge run [workspace] [--executor host|docker] [--timeout-minutes n] -- <command>
               agentbridge skills [workspace]
-              agentbridge ask <workspace> [--new|--conversation id] [--executor host|docker] [--max-iterations n] <message>
+              agentbridge ask <workspace> [--new|--conversation id] [--executor host|docker] [--max-iterations n] [--skill name|--skills names] <message>
               agentbridge conversations list [workspace]
               agentbridge conversations show [workspace] <conversation-id>
               agentbridge config init [workspace] [--force]
@@ -935,6 +952,7 @@ internal static class ProgramMain
         int? MaxIterations,
         bool StartNew,
         string? ConversationId,
+        string[] SkillNames,
         string Message)
     {
         public static AskOptions Parse(string[] args)
@@ -944,6 +962,7 @@ internal static class ProgramMain
             int? maxIterations = null;
             var startNew = false;
             string? conversationId = null;
+            var skillNames = new List<string>();
             var messageParts = new List<string>();
 
             for (var index = 1; index < args.Length; index++)
@@ -962,6 +981,10 @@ internal static class ProgramMain
                     case "--conversation" when index + 1 < args.Length:
                         conversationId = args[++index];
                         break;
+                    case "--skill" when index + 1 < args.Length:
+                    case "--skills" when index + 1 < args.Length:
+                        skillNames.Add(args[++index]);
+                        break;
                     default:
                         messageParts.Add(args[index]);
                         break;
@@ -979,6 +1002,7 @@ internal static class ProgramMain
                 maxIterations,
                 startNew,
                 conversationId,
+                skillNames.ToArray(),
                 string.Join(' ', messageParts));
         }
     }

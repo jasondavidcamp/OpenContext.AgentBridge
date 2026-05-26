@@ -28,7 +28,7 @@ Review the diff before committing sandbox changes. Reset or keep the sandbox cha
 ## PowerShell Skill Smoke
 
 ```powershell
-dotnet run --project src\OpenContext.AgentBridge.Cli -- ask examples\powershell-sandbox --new --max-iterations 8 "Use the PowerShell skill. Inspect this PowerShell sandbox, improve the script help text without changing runtime behavior, run the validation command, then show the git diff."
+dotnet run --project src\OpenContext.AgentBridge.Cli -- ask examples\powershell-sandbox --new --skill powershell --max-iterations 8 "Inspect this PowerShell sandbox, improve the script help text without changing runtime behavior, run the validation command, then show the git diff."
 ```
 
 ## What To Watch
