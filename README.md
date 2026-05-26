@@ -69,6 +69,7 @@ dotnet run --project src/OpenContext.AgentBridge.Cli -- models test .
 - `OpenContext.AgentBridge.Storage`: SQLite conversation persistence
 - `docker/`: optional tool container assets
 - `skills/`: repo-level starter documentation for skills
+- `examples/`: safe sandbox fixtures for public-endpoint dogfooding
 
 ## Docker Tool Executor
 
