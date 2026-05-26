@@ -22,9 +22,18 @@ public sealed class SqliteConversationStoreTests
             await store.AppendMessageAsync(
                 conversationId,
                 new AgentMessage("assistant", "hi there", DateTimeOffset.UtcNow));
+            await store.AppendToolCallAsync(
+                conversationId,
+                new ToolCallRecord(
+                    "read_file",
+                    """{"path":"README.md"}""",
+                    true,
+                    "# Hello",
+                    DateTimeOffset.UtcNow));
 
             var messages = await store.ReadMessagesAsync(conversationId);
             var summaries = await store.ListConversationsAsync(root);
+            var toolCalls = await store.ReadToolCallsAsync(conversationId);
 
             Assert.Collection(
                 messages,
@@ -34,6 +43,11 @@ public sealed class SqliteConversationStoreTests
             var summary = Assert.Single(summaries);
             Assert.Equal(conversationId, summary.Id);
             Assert.Equal(root, summary.WorkspaceRoot);
+
+            var toolCall = Assert.Single(toolCalls);
+            Assert.Equal("read_file", toolCall.ToolName);
+            Assert.True(toolCall.IsSuccess);
+            Assert.Equal("# Hello", toolCall.ResultContent);
         }
         finally
         {

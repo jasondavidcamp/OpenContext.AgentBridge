@@ -1,8 +1,10 @@
 using OpenContext.AgentBridge.Core;
+using OpenContext.AgentBridge.Core.Agents;
 using OpenContext.AgentBridge.Core.Conversation;
 using OpenContext.AgentBridge.Core.Execution;
-using OpenContext.AgentBridge.Core.Models;
 using OpenContext.AgentBridge.Core.Skills;
+using OpenContext.AgentBridge.Core.Tools;
+using OpenContext.AgentBridge.Core.Tools.BuiltIn;
 using OpenContext.AgentBridge.Core.Workspaces;
 using OpenContext.AgentBridge.Providers.Gemini;
 using OpenContext.AgentBridge.Storage;
@@ -100,7 +102,7 @@ internal static class ProgramMain
 
         var result = await executor.RunAsync(
             workspace,
-            ShellCommand.Create(command, TimeSpan.FromMinutes(parsed.TimeoutMinutes)));
+            ShellCommand.Create(command, executor.Name, TimeSpan.FromMinutes(parsed.TimeoutMinutes)));
 
         Console.Write(result.StandardOutput);
 
@@ -140,14 +142,14 @@ internal static class ProgramMain
     {
         if (args.Length < 2)
         {
-            Console.Error.WriteLine("Usage: agentbridge ask <workspace> <message>");
+            Console.Error.WriteLine("Usage: agentbridge ask <workspace> [--executor host|docker] [--max-iterations n] <message>");
             return 1;
         }
 
-        var workspace = WorkspaceContext.FromPath(args[0]);
+        var options = AskOptions.Parse(args);
+        var workspace = WorkspaceContext.FromPath(options.WorkspacePath);
         workspace.EnsureLocalState();
 
-        var messageText = string.Join(' ', args[1..]);
         var store = new SqliteConversationStore(workspace.ConversationDatabasePath);
         await store.InitializeAsync();
 
@@ -156,10 +158,10 @@ internal static class ProgramMain
 
         await store.AppendMessageAsync(
             conversationId,
-            new AgentMessage("user", messageText, DateTimeOffset.UtcNow));
+            new AgentMessage("user", options.Message, DateTimeOffset.UtcNow));
 
-        var messages = await store.ReadMessagesAsync(conversationId);
         var skills = await LoadSkillsAsync(workspace);
+        var executor = CreateExecutor(options.Executor);
 
         using var httpClient = new HttpClient();
         var provider = new GeminiModelProvider(
@@ -171,14 +173,18 @@ internal static class ProgramMain
                 Model = Environment.GetEnvironmentVariable("AGENTBRIDGE_GEMINI_MODEL") ?? "gemini-1.5-pro"
             });
 
-        var response = await provider.CompleteAsync(
-            new AgentTurnRequest(workspace.RootPath, messages, skills));
-
-        await store.AppendMessageAsync(
+        var loop = new AgentLoop(
+            provider,
+            store,
+            new ToolRegistry(BuiltInTools.CreateDefault()));
+        var result = await loop.RunAsync(
             conversationId,
-            new AgentMessage("assistant", response.Content, DateTimeOffset.UtcNow));
+            workspace,
+            executor,
+            skills,
+            new AgentLoopOptions(options.MaxIterations));
 
-        Console.WriteLine(response.Content);
+        Console.WriteLine(result.FinalMessage);
         return 0;
     }
 
@@ -235,7 +241,7 @@ internal static class ProgramMain
               agentbridge doctor [workspace] [--executor host|docker]
               agentbridge run [workspace] [--executor host|docker] [--timeout-minutes n] -- <command>
               agentbridge skills [workspace]
-              agentbridge ask <workspace> <message>
+              agentbridge ask <workspace> [--executor host|docker] [--max-iterations n] <message>
 
             Environment:
               AGENTBRIDGE_GEMINI_API_KEY
@@ -273,6 +279,44 @@ internal static class ProgramMain
             }
 
             return new CommandOptions(positionals.ToArray(), executor, timeoutMinutes);
+        }
+    }
+
+    private sealed record AskOptions(
+        string WorkspacePath,
+        string Executor,
+        int MaxIterations,
+        string Message)
+    {
+        public static AskOptions Parse(string[] args)
+        {
+            var workspacePath = args[0];
+            var executor = "host";
+            var maxIterations = 8;
+            var messageParts = new List<string>();
+
+            for (var index = 1; index < args.Length; index++)
+            {
+                switch (args[index])
+                {
+                    case "--executor" when index + 1 < args.Length:
+                        executor = args[++index];
+                        break;
+                    case "--max-iterations" when index + 1 < args.Length && int.TryParse(args[++index], out var parsed):
+                        maxIterations = Math.Clamp(parsed, 1, 20);
+                        break;
+                    default:
+                        messageParts.Add(args[index]);
+                        break;
+                }
+            }
+
+            if (messageParts.Count == 0)
+            {
+                throw new ArgumentException("An ask message is required.");
+            }
+
+            return new AskOptions(workspacePath, executor, maxIterations, string.Join(' ', messageParts));
         }
     }
 }

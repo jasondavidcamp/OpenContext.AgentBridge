@@ -17,6 +17,15 @@ public interface IConversationStore
         string conversationId,
         CancellationToken cancellationToken = default);
 
+    Task AppendToolCallAsync(
+        string conversationId,
+        ToolCallRecord toolCall,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<ToolCallRecord>> ReadToolCallsAsync(
+        string conversationId,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<ConversationSummary>> ListConversationsAsync(
         string workspaceRoot,
         CancellationToken cancellationToken = default);

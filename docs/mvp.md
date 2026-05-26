@@ -19,10 +19,10 @@ agentbridge <workspace>
 - SQLite-backed chats
 - Markdown skills loaded from the workspace
 - Git status/diff visibility
+- JSON action loop for tool execution
 
 ## Next Decisions
 
-- Structured action format for Gemini responses
 - Patch application strategy
 - Skill manifest format
 - Long-running task model

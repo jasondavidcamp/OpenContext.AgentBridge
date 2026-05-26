@@ -41,6 +41,17 @@ public sealed class SqliteConversationStore : IConversationStore
                 created_at TEXT NOT NULL,
                 FOREIGN KEY(conversation_id) REFERENCES conversations(id)
             );
+
+            CREATE TABLE IF NOT EXISTS tool_calls (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                conversation_id TEXT NOT NULL,
+                tool_name TEXT NOT NULL,
+                arguments_json TEXT NOT NULL,
+                is_success INTEGER NOT NULL,
+                result_content TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY(conversation_id) REFERENCES conversations(id)
+            );
             """;
 
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
@@ -142,6 +153,84 @@ public sealed class SqliteConversationStore : IConversationStore
         }
 
         return messages;
+    }
+
+    public async Task AppendToolCallAsync(
+        string conversationId,
+        ToolCallRecord toolCall,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = CreateConnection();
+        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        await using var transaction = (SqliteTransaction)await connection
+            .BeginTransactionAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        await using (var insert = connection.CreateCommand())
+        {
+            insert.Transaction = transaction;
+            insert.CommandText = """
+                INSERT INTO tool_calls (conversation_id, tool_name, arguments_json, is_success, result_content, created_at)
+                VALUES ($conversation_id, $tool_name, $arguments_json, $is_success, $result_content, $created_at);
+                """;
+            insert.Parameters.AddWithValue("$conversation_id", conversationId);
+            insert.Parameters.AddWithValue("$tool_name", toolCall.ToolName);
+            insert.Parameters.AddWithValue("$arguments_json", toolCall.ArgumentsJson);
+            insert.Parameters.AddWithValue("$is_success", toolCall.IsSuccess ? 1 : 0);
+            insert.Parameters.AddWithValue("$result_content", toolCall.ResultContent);
+            insert.Parameters.AddWithValue("$created_at", toolCall.CreatedAt.ToString("O"));
+
+            await insert.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        await using (var update = connection.CreateCommand())
+        {
+            update.Transaction = transaction;
+            update.CommandText = """
+                UPDATE conversations
+                SET updated_at = $updated_at
+                WHERE id = $conversation_id;
+                """;
+            update.Parameters.AddWithValue("$conversation_id", conversationId);
+            update.Parameters.AddWithValue("$updated_at", DateTimeOffset.UtcNow.ToString("O"));
+
+            await update.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlyList<ToolCallRecord>> ReadToolCallsAsync(
+        string conversationId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = CreateConnection();
+        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT tool_name, arguments_json, is_success, result_content, created_at
+            FROM tool_calls
+            WHERE conversation_id = $conversation_id
+            ORDER BY id;
+            """;
+        command.Parameters.AddWithValue("$conversation_id", conversationId);
+
+        var toolCalls = new List<ToolCallRecord>();
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            toolCalls.Add(new ToolCallRecord(
+                reader.GetString(0),
+                reader.GetString(1),
+                reader.GetInt32(2) == 1,
+                reader.GetString(3),
+                DateTimeOffset.Parse(reader.GetString(4))));
+        }
+
+        return toolCalls;
     }
 
     public async Task<IReadOnlyList<ConversationSummary>> ListConversationsAsync(

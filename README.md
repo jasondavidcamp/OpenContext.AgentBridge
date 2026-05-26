@@ -85,5 +85,19 @@ $env:AGENTBRIDGE_GEMINI_ENDPOINT = "<optional custom endpoint>"
 Ask stores the conversation in `.agentbridge/agentbridge.db`:
 
 ```powershell
-dotnet run --project src/OpenContext.AgentBridge.Cli -- ask . "Summarize this repository."
+dotnet run --project src/OpenContext.AgentBridge.Cli -- ask . --executor host "Summarize this repository."
 ```
+
+`ask` now runs a structured action loop. Gemini must return either a tool request or a final answer as JSON, and AgentBridge validates and executes tool requests inside the selected workspace.
+
+Starter tools:
+
+- `list_files`
+- `read_file`
+- `search`
+- `write_file`
+- `run_command`
+- `git_status`
+- `git_diff`
+
+See [docs/action-protocol.md](docs/action-protocol.md) for the current protocol.

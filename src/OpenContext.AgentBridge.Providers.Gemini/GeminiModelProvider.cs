@@ -79,13 +79,31 @@ public sealed class GeminiModelProvider : IModelProvider
             : string.Join(
                 Environment.NewLine + Environment.NewLine,
                 request.Skills.Select(skill => $"# Skill: {skill.Name}{Environment.NewLine}{skill.Instructions}"));
+        var toolText = request.Tools.Count == 0
+            ? "No tools are currently available."
+            : string.Join(
+                Environment.NewLine,
+                request.Tools.Select(tool => $"- {tool.Name}: {tool.Description} Arguments: {tool.ArgumentsSchema}"));
+        const string toolExample = """{"type":"tool","tool":"read_file","arguments":{"path":"README.md"}}""";
+        const string finalExample = """{"type":"final","message":"Short summary of the result."}""";
 
         return $"""
             You are AgentBridge, a workspace-scoped coding agent.
             Workspace root: {request.WorkspaceRoot}
 
-            You may ask AgentBridge to perform tool actions, but this early provider currently returns text only.
-            Prefer precise, step-by-step implementation guidance and JSON-like action plans when tool execution is needed.
+            You must respond with exactly one JSON object and no surrounding prose.
+
+            To request a tool action:
+            {toolExample}
+
+            To finish:
+            {finalExample}
+
+            Available tools:
+            {toolText}
+
+            Use tools to inspect files before modifying them. Keep all paths relative to the workspace unless a tool says otherwise.
+            After a tool result, either request the next tool action or return a final JSON object.
 
             Loaded skills:
             {skillText}
