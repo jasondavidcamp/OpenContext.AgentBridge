@@ -1,4 +1,6 @@
 using System.Net.Http.Json;
+using System.Globalization;
+using System.Text.RegularExpressions;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using OpenContext.AgentBridge.Core.Conversation;
@@ -36,31 +38,43 @@ public sealed class OpenAiCompatibleModelProvider : IModelProvider
 
         var endpoint = _options.GetChatCompletionsEndpoint();
         var payload = CreatePayload(request);
-        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, endpoint)
-        {
-            Content = JsonContent.Create(payload, options: JsonOptions)
-        };
-        OpenAiCompatibleAuthentication.Apply(httpRequest, _options);
 
-        var startedAt = DateTimeOffset.UtcNow;
-        using var response = await _httpClient.SendAsync(httpRequest, cancellationToken).ConfigureAwait(false);
-        var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        await OpenAiCompatibleTrafficLogger.WriteAsync(
-                _options,
-                endpoint,
-                startedAt,
-                (int)response.StatusCode,
-                payload,
-                body,
-                cancellationToken)
-            .ConfigureAwait(false);
-
-        if (!response.IsSuccessStatusCode)
+        for (var attempt = 0; attempt <= _options.MaxRetries; attempt++)
         {
-            throw new InvalidOperationException(BuildHttpErrorMessage(response, endpoint, body));
+            using var httpRequest = new HttpRequestMessage(HttpMethod.Post, endpoint)
+            {
+                Content = JsonContent.Create(payload, options: JsonOptions)
+            };
+            OpenAiCompatibleAuthentication.Apply(httpRequest, _options);
+
+            var startedAt = DateTimeOffset.UtcNow;
+            using var response = await _httpClient.SendAsync(httpRequest, cancellationToken).ConfigureAwait(false);
+            var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            await OpenAiCompatibleTrafficLogger.WriteAsync(
+                    _options,
+                    endpoint,
+                    startedAt,
+                    (int)response.StatusCode,
+                    payload,
+                    body,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            if (response.IsSuccessStatusCode)
+            {
+                return new AgentTurnResponse(OpenAiCompatibleResponseTextExtractor.Extract(body));
+            }
+
+            var retryDelay = GetRetryDelay(response, body);
+            if (attempt >= _options.MaxRetries || retryDelay is null)
+            {
+                throw new InvalidOperationException(BuildHttpErrorMessage(response, endpoint, body));
+            }
+
+            await _options.DelayAsync(CapRetryDelay(retryDelay.Value), cancellationToken).ConfigureAwait(false);
         }
 
-        return new AgentTurnResponse(OpenAiCompatibleResponseTextExtractor.Extract(body));
+        throw new InvalidOperationException("OpenAI-compatible request failed after retries.");
     }
 
     private ChatCompletionRequest CreatePayload(AgentTurnRequest request)
@@ -106,6 +120,73 @@ public sealed class OpenAiCompatibleModelProvider : IModelProvider
         var rateLimit = DescribeRateLimitHeaders(response);
 
         return $"OpenAI-compatible request failed with {status} {response.ReasonPhrase} at {OpenAiCompatibleOptions.RedactEndpoint(endpoint)}.{hint}{rateLimit} Response: {Preview(body)}";
+    }
+
+    private static TimeSpan? GetRetryDelay(HttpResponseMessage response, string body)
+    {
+        if ((int)response.StatusCode != 429 && (int)response.StatusCode != 503)
+        {
+            return null;
+        }
+
+        return GetRetryAfterDelay(response)
+            ?? GetGoogleMessageRetryDelay(body)
+            ?? GetGoogleRetryInfoDelay(body)
+            ?? TimeSpan.FromSeconds(10);
+    }
+
+    private static TimeSpan? GetRetryAfterDelay(HttpResponseMessage response)
+    {
+        if (response.Headers.RetryAfter?.Delta is { } delta)
+        {
+            return delta;
+        }
+
+        if (response.Headers.RetryAfter?.Date is { } date)
+        {
+            var delay = date - DateTimeOffset.UtcNow;
+            return delay > TimeSpan.Zero ? delay : TimeSpan.Zero;
+        }
+
+        return null;
+    }
+
+    private static TimeSpan? GetGoogleRetryInfoDelay(string body)
+    {
+        var match = Regex.Match(body, "\"retryDelay\"\\s*:\\s*\"(?<seconds>[0-9]+(?:\\.[0-9]+)?)s\"");
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        return double.TryParse(match.Groups["seconds"].Value, CultureInfo.InvariantCulture, out var seconds) && seconds > 0
+            ? TimeSpan.FromSeconds(seconds)
+            : null;
+    }
+
+    private static TimeSpan? GetGoogleMessageRetryDelay(string body)
+    {
+        var match = Regex.Match(
+            body,
+            "retry in (?<value>[0-9]+(?:\\.[0-9]+)?)(?<unit>ms|s)",
+            RegexOptions.IgnoreCase);
+        if (!match.Success
+            || !double.TryParse(match.Groups["value"].Value, CultureInfo.InvariantCulture, out var value)
+            || value <= 0)
+        {
+            return null;
+        }
+
+        return string.Equals(match.Groups["unit"].Value, "ms", StringComparison.OrdinalIgnoreCase)
+            ? TimeSpan.FromMilliseconds(value)
+            : TimeSpan.FromSeconds(value);
+    }
+
+    private TimeSpan CapRetryDelay(TimeSpan delay)
+    {
+        return delay > _options.MaxRetryDelay
+            ? _options.MaxRetryDelay
+            : delay;
     }
 
     private static string DescribeRateLimitHeaders(HttpResponseMessage response)

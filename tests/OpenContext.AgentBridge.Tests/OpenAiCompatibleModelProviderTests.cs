@@ -186,6 +186,77 @@ public sealed class OpenAiCompatibleModelProviderTests
         Assert.Equal(1686935002, model.Created);
     }
 
+    [Fact]
+    public async Task CompleteAsync_retries_rate_limited_response()
+    {
+        TimeSpan? observedDelay = null;
+        var handler = new SequenceHandler(
+            new HttpResponseMessage(HttpStatusCode.TooManyRequests)
+            {
+                Content = new StringContent(
+                    """
+                    [{
+                      "error": {
+                        "message": "Please retry in 25ms.",
+                        "details": [
+                          {
+                            "@type": "type.googleapis.com/google.rpc.RetryInfo",
+                            "retryDelay": "0s"
+                          }
+                        ]
+                      }
+                    }]
+                    """,
+                    Encoding.UTF8,
+                    "application/json")
+            },
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    """
+                    {
+                      "choices": [
+                        {
+                          "message": {
+                            "content": "{\"type\":\"final\",\"message\":\"retried\"}"
+                          }
+                        }
+                      ]
+                    }
+                    """,
+                    Encoding.UTF8,
+                    "application/json")
+            });
+        using var httpClient = new HttpClient(handler);
+        var provider = new OpenAiCompatibleModelProvider(
+            httpClient,
+            new OpenAiCompatibleOptions
+            {
+                Endpoint = "https://stark.test/v1",
+                Model = "gemini-stark",
+                ApiKey = "secret",
+                DelayAsync = (delay, _) =>
+                {
+                    observedDelay = delay;
+                    return Task.CompletedTask;
+                }
+            });
+
+        var response = await provider.CompleteAsync(
+            new AgentTurnRequest(
+                "C:\\work",
+                new[]
+                {
+                    new AgentMessage("user", "hello", DateTimeOffset.UtcNow)
+                },
+                Array.Empty<Skill>(),
+                Array.Empty<ToolDefinition>()));
+
+        Assert.Equal("""{"type":"final","message":"retried"}""", response.Content);
+        Assert.Equal(2, handler.RequestCount);
+        Assert.Equal(TimeSpan.FromMilliseconds(25), observedDelay);
+    }
+
     private sealed class CaptureHandler : HttpMessageHandler
     {
         private readonly string _responseBody;
@@ -228,6 +299,26 @@ public sealed class OpenAiCompatibleModelProviderTests
             {
                 Content = new StringContent(_responseBody, Encoding.UTF8, "application/json")
             };
+        }
+    }
+
+    private sealed class SequenceHandler : HttpMessageHandler
+    {
+        private readonly Queue<HttpResponseMessage> _responses;
+
+        public SequenceHandler(params HttpResponseMessage[] responses)
+        {
+            _responses = new Queue<HttpResponseMessage>(responses);
+        }
+
+        public int RequestCount { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            RequestCount++;
+            return Task.FromResult(_responses.Dequeue());
         }
     }
 }

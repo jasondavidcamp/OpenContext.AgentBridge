@@ -23,6 +23,12 @@ public sealed class OpenAiCompatibleOptions
 
     public string? LogDirectory { get; init; }
 
+    public int MaxRetries { get; init; } = 2;
+
+    public TimeSpan MaxRetryDelay { get; init; } = TimeSpan.FromSeconds(60);
+
+    public Func<TimeSpan, CancellationToken, Task> DelayAsync { get; init; } = Task.Delay;
+
     public Uri GetChatCompletionsEndpoint()
     {
         var endpoint = GetConfiguredEndpoint();
