@@ -40,6 +40,10 @@ public static class AgentSystemPromptBuilder
             Keep all paths relative to the workspace unless a tool says otherwise.
             Use tools to inspect files before modifying them. If the user asked you not to edit files, do not call editing tools.
             For one-line or small exact substitutions, use replace_text after reading the file. Do not use apply_patch for simple exact substitutions. Use apply_patch for multi-line targeted edits. Use write_file only when creating or replacing a whole file is the clearest option.
+            If the user asks you to edit a file, you must inspect the target file in the current conversation before editing it.
+            If the user asks you to run validation, tests, or commands, use run_command before returning a final answer.
+            If the user asks for a diff or status, use git_diff, git_status, or run_command before returning a final answer.
+            Never report command output, validation results, status, or diffs unless they appeared in a current AgentBridge tool result.
             Final messages must be concise plain text in the JSON message field. Avoid Markdown headings, tables, code fences, and decorative formatting unless the user explicitly asked for them.
             After a tool result, either request the next tool action or return a final JSON object.
 

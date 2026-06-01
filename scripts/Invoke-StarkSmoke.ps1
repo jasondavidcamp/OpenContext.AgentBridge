@@ -70,12 +70,51 @@ function Invoke-NativeCommand {
     }
 }
 
+function Reset-SmokeState {
+    param(
+        [string]$Path,
+        [switch]$RemoveLocalState,
+        [string]$Reason = "cleanup"
+    )
+
+    if (Test-Path $Path) {
+        git checkout -- $Path | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            throw "git checkout failed while resetting $Path during $Reason."
+        }
+
+        Write-Host "Reset sample file during ${Reason}: $Path"
+    }
+
+    if ($RemoveLocalState -and (Test-Path ".\.agentbridge")) {
+        Remove-Item -Recurse -Force ".\.agentbridge" -ErrorAction SilentlyContinue
+        Write-Host "Removed local AgentBridge state during ${Reason}: .agentbridge"
+    }
+}
+
+function Assert-CleanSample {
+    param([string]$Path)
+
+    $status = git status --short -- $Path
+    if ($LASTEXITCODE -ne 0) {
+        throw "git status failed while checking no-edit smoke result."
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($status)) {
+        throw "No-edit smoke changed $Path. Status: $status"
+    }
+
+    Write-Host "No-edit smoke left sample file clean."
+}
+
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $samplePath = "examples/powershell-sandbox/Get-Greeting.ps1"
 $completed = $false
 
 Push-Location $repoRoot
 try {
+    Reset-SmokeState -Path $samplePath -RemoveLocalState:(-not $KeepLocalState) -Reason "preflight"
+
     if ([string]::IsNullOrWhiteSpace($Endpoint)) {
         $Endpoint = Read-Host "STARK endpoint ending in /v1"
     }
@@ -165,6 +204,7 @@ try {
 
         Write-Section "Status After No-Edit Smoke"
         Invoke-NativeCommand "git" @("status", "--short")
+        Assert-CleanSample -Path $samplePath
 
         Write-Section "Edit Agent Smoke"
         Invoke-NativeCommand "dotnet" @(
@@ -197,9 +237,8 @@ try {
 finally {
     if ($completed) {
         if (-not $KeepChanges) {
-            git checkout -- $samplePath | Out-Null
             Write-Host ""
-            Write-Host "Reset sample file: $samplePath"
+            Reset-SmokeState -Path $samplePath -Reason "completion"
         }
 
         if (-not $KeepLocalState -and (Test-Path ".\.agentbridge")) {
