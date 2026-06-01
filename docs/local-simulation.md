@@ -36,6 +36,12 @@ Use `-KeepChanges` to inspect the sample edit after the run:
 .\scripts\Invoke-LocalStarkSmoke.ps1 -KeepChanges
 ```
 
+Use `-OutputDirectory` and `-ZipDiagnostics` to test the diagnostics bundle locally:
+
+```powershell
+.\scripts\Invoke-LocalStarkSmoke.ps1 -OutputDirectory ".agentbridge\diagnostics\local-smoke" -ZipDiagnostics
+```
+
 Simulator logs are written under `.agentbridge/simulator-logs/`.
 
 ## Manual Simulator Run

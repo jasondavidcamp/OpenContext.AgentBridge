@@ -128,6 +128,12 @@ For rapid local iteration without a remote gateway, run the simulator smoke test
 .\scripts\Invoke-LocalStarkSmoke.ps1
 ```
 
+To collect a diagnostics bundle from any smoke run:
+
+```powershell
+.\scripts\Invoke-StarkSmoke.ps1 -Endpoint "https://stark.example.mil/v1" -OutputDirectory ".agentbridge\diagnostics\stark-smoke" -ZipDiagnostics
+```
+
 Gemini can also be tested through Google's OpenAI-compatible endpoint:
 
 ```powershell

@@ -58,6 +58,14 @@ Run the STARK smoke script:
 
 The script prompts for the API key without displaying it. By default it builds the repo, lists models, tests one model, validates the included PowerShell and .NET sandboxes, runs a no-edit agent inspection, runs a small edit/validate/diff loop against `examples/powershell-sandbox`, runs a symbol-aware C# edit/validate/diff loop against `examples/sandbox-project`, then resets the sample files. It also sets a 300-second model timeout for slow STARK responses. Use `-ConnectivityOnly` to stop after the model and sandbox checks, or `-KeepChanges` to leave the sample edits in place.
 
+Use `-OutputDirectory` to write a diagnostics bundle with a redacted environment summary, pass/fail JSON, and one log per command step:
+
+```powershell
+.\scripts\Invoke-StarkSmoke.ps1 -Endpoint "https://stark.example.mil/v1" -Model "gemini-2.5-flash" -OutputDirectory ".agentbridge\diagnostics\stark-smoke" -ZipDiagnostics
+```
+
+The zip file is written next to the diagnostics directory when `-ZipDiagnostics` is supplied. API keys are not written to the bundle.
+
 List available model IDs:
 
 ```powershell

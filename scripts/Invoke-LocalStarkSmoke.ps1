@@ -4,7 +4,9 @@ param(
     [string]$Model = "simulated-gemini-flash",
     [switch]$ConnectivityOnly,
     [switch]$KeepChanges,
-    [switch]$KeepLocalState
+    [switch]$KeepLocalState,
+    [string]$OutputDirectory,
+    [switch]$ZipDiagnostics
 )
 
 $ErrorActionPreference = "Stop"
@@ -101,7 +103,9 @@ try {
         -SkipBuild `
         -ConnectivityOnly:$ConnectivityOnly `
         -KeepChanges:$KeepChanges `
-        -KeepLocalState:$KeepLocalState
+        -KeepLocalState:$KeepLocalState `
+        -OutputDirectory $OutputDirectory `
+        -ZipDiagnostics:$ZipDiagnostics
 }
 finally {
     if ($process -and -not $process.HasExited) {
