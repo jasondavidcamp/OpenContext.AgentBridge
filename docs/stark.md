@@ -42,6 +42,14 @@ $env:AGENTBRIDGE_STARK_API_KEY_PREFIX = ""
 
 ## Diagnostics
 
+For rapid local iteration before testing a real gateway, use the built-in simulator:
+
+```powershell
+.\scripts\Invoke-LocalStarkSmoke.ps1
+```
+
+See [local-simulation.md](local-simulation.md) for details.
+
 Run the STARK smoke script:
 
 ```powershell

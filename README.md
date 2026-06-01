@@ -66,6 +66,7 @@ dotnet run --project src/OpenContext.AgentBridge.Cli -- models test .
 - `OpenContext.AgentBridge.Core`: workspace, execution, model, and skill abstractions
 - `OpenContext.AgentBridge.Providers.Gemini`: Gemini provider adapter boundary
 - `OpenContext.AgentBridge.Providers.OpenAiCompatible`: OpenAI-compatible chat completions adapter for STARK-style gateways
+- `OpenContext.AgentBridge.SimulatedStark`: local STARK/OpenAI-compatible simulator for personal-side regression runs
 - `OpenContext.AgentBridge.Storage`: SQLite conversation persistence
 - `docker/`: optional tool container assets
 - `scripts/`: repeatable smoke tests for constrained environments
@@ -114,6 +115,12 @@ For a one-command STARK smoke test, run:
 ```
 
 The script prompts for the API key without echoing it, builds the repo, lists/tests STARK models, runs a no-edit agent inspection, runs a tiny PowerShell edit/validate/diff loop, and then resets the sample file. It sets a longer model timeout for slow gateway responses.
+
+For rapid local iteration without a remote gateway, run the simulator smoke test:
+
+```powershell
+.\scripts\Invoke-LocalStarkSmoke.ps1
+```
 
 Gemini can also be tested through Google's OpenAI-compatible endpoint:
 
@@ -172,4 +179,5 @@ See [docs/action-protocol.md](docs/action-protocol.md) for the current protocol.
 See [docs/configuration.md](docs/configuration.md) for configuration and provider diagnostics.
 See [docs/dogfood.md](docs/dogfood.md) for safe public-endpoint dogfooding.
 See [docs/gemini-openai.md](docs/gemini-openai.md) for the Gemini OpenAI-compatible rehearsal path.
+See [docs/local-simulation.md](docs/local-simulation.md) for the local STARK-compatible simulator workflow.
 See [docs/stark.md](docs/stark.md) for the STARK/OpenAI-compatible provider profile.
