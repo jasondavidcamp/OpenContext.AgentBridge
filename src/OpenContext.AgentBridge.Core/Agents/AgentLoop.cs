@@ -102,6 +102,12 @@ public sealed class AgentLoop
                     await ReadToolCallsAsync(conversationId, cancellationToken).ConfigureAwait(false));
             }
 
+            if (directive.ToolName is { } toolName
+                && _toolRegistry.TryGetCanonicalName(toolName, out var canonicalToolName))
+            {
+                directive = directive with { ToolName = canonicalToolName };
+            }
+
             options.Progress?.Report(new AgentProgressEvent(
                 AgentProgressKind.ToolRequested,
                 turn,
@@ -237,6 +243,7 @@ public sealed class AgentLoop
             {Preview(response, 1_200)}
 
             Respond with exactly one JSON object and no surrounding prose.
+            You are operating only through AgentBridge tools in the workspace already provided by the system prompt. Do not claim direct filesystem access or mention paths unless a tool result showed them.
             Use one of these forms:
             {toolExample}
             {finalExample}

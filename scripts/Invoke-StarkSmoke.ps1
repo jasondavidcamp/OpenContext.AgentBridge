@@ -160,7 +160,7 @@ try {
             "powershell",
             "--max-iterations",
             "$NoEditMaxIterations",
-            "Only inspect examples/powershell-sandbox. Read the README and Get-Greeting.ps1, then return a final summary. Do not edit files."
+            "Only inspect examples/powershell-sandbox. Read the README.md and Get-Greeting.ps1, then return a final summary in no more than three plain sentences. Do not edit files."
         )
 
         Write-Section "Status After No-Edit Smoke"
@@ -179,7 +179,7 @@ try {
             "powershell",
             "--max-iterations",
             "$EditMaxIterations",
-            "Only work in examples/powershell-sandbox. Improve the PowerShell script help text in Get-Greeting.ps1 without changing runtime behavior. Preserve the Name parameter and greeting output. Validate by running: pwsh -NoProfile -File .\examples\powershell-sandbox\Get-Greeting.ps1 -Name AgentBridge. Then show the git diff and return a final summary."
+            "Only work in examples/powershell-sandbox. Improve the PowerShell script help text in Get-Greeting.ps1 without changing runtime behavior. Preserve the Name parameter and greeting output. Validate by running: pwsh -NoProfile -File .\examples\powershell-sandbox\Get-Greeting.ps1 -Name AgentBridge. Then show the git diff and return a final summary in no more than three plain sentences."
         )
 
         Write-Section "Final Validation"

@@ -41,6 +41,8 @@ AgentBridge executes the tool, stores the full tool call record for audit/debugg
 
 File tools enforce the workspace boundary. `replace_text` is safest for small exact substitutions after reading the target file. Use `apply_patch` for broader targeted edits to existing code, not for simple one-line substitutions. Patch paths should be workspace-relative; AgentBridge also normalizes safe paths that include the active workspace folder prefix, such as `examples/sandbox-project/SandboxApp/Program.cs` when the workspace is already `examples/sandbox-project`. `git_status` and `git_diff` are scoped to the workspace path, even when the workspace is a subdirectory of a larger repository. `run_command` starts in the workspace root using the selected executor. Use the Docker executor when command isolation is more important than direct host access.
 
+AgentBridge accepts a small set of recovery aliases for common model mistakes, such as `execute_command` -> `run_command` and `list_directory` -> `list_files`, but prompts still instruct models to use canonical tool names.
+
 ## Parser Recovery
 
 AgentBridge accepts a JSON object directly, inside a fenced code block, or embedded in otherwise harmless prose. If no valid directive can be parsed, the response is stored and AgentBridge adds a `MODEL_RESPONSE_PARSE_ERROR` observation asking the model to retry with exactly one JSON object.

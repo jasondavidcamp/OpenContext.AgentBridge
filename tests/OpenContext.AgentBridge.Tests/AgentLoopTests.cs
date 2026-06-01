@@ -177,6 +177,51 @@ public sealed class AgentLoopTests
         }
     }
 
+    [Fact]
+    public async Task RunAsync_normalizes_common_tool_aliases()
+    {
+        var root = CreateTempDirectory();
+
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(root, "README.md"), "# AgentBridge");
+
+            var workspace = WorkspaceContext.FromPath(root);
+            workspace.EnsureLocalState();
+
+            var store = new SqliteConversationStore(workspace.ConversationDatabasePath);
+            await store.InitializeAsync();
+            var conversationId = await store.CreateConversationAsync(workspace.RootPath);
+            await store.AppendMessageAsync(
+                conversationId,
+                new AgentMessage("user", "List files.", DateTimeOffset.UtcNow));
+
+            var provider = new QueueModelProvider(
+                """{"type":"tool","tool":"list_directory","arguments":{"path":"."}}""",
+                """{"type":"final","message":"Done."}""");
+            var loop = new AgentLoop(
+                provider,
+                store,
+                new ToolRegistry(BuiltInTools.CreateDefault()));
+
+            var result = await loop.RunAsync(
+                conversationId,
+                workspace,
+                new HostWorkspaceExecutor(),
+                Array.Empty<OpenContext.AgentBridge.Core.Skills.Skill>(),
+                new AgentLoopOptions(8));
+
+            var toolCall = Assert.Single(result.ToolCalls);
+            Assert.Equal("list_files", toolCall.ToolName);
+            Assert.True(toolCall.IsSuccess);
+            Assert.Contains("README.md", toolCall.ResultContent);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
 
     private sealed class ListProgress : IProgress<AgentProgressEvent>
     {

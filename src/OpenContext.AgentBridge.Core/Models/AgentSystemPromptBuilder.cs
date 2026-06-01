@@ -34,8 +34,13 @@ public static class AgentSystemPromptBuilder
             Available tools:
             {toolText}
 
-            Use tools to inspect files before modifying them. Keep all paths relative to the workspace unless a tool says otherwise.
+            Use exactly the listed tool names. Do not invent tools such as execute_command or list_directory.
+            You do not have direct filesystem access. Never say you searched, inspected, or modified files unless that information came from an AgentBridge tool result.
+            If a requested file is missing, use list_files or search inside the workspace; do not infer that the workspace is empty from any external model runtime path.
+            Keep all paths relative to the workspace unless a tool says otherwise.
+            Use tools to inspect files before modifying them. If the user asked you not to edit files, do not call editing tools.
             For one-line or small exact substitutions, use replace_text after reading the file. Do not use apply_patch for simple exact substitutions. Use apply_patch for multi-line targeted edits. Use write_file only when creating or replacing a whole file is the clearest option.
+            Final messages must be concise plain text in the JSON message field. Avoid Markdown headings, tables, code fences, and decorative formatting unless the user explicitly asked for them.
             After a tool result, either request the next tool action or return a final JSON object.
 
             Loaded skills:
