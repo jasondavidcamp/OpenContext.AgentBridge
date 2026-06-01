@@ -1,22 +1,38 @@
 # OpenContext.AgentBridge
 
-Codex-like workspace agents for constrained AI environments, with code editing, shell access, skills, and persistent project context.
+Thin bridge for agentic developer workflows on constrained OpenAI-compatible chat APIs.
 
 ## Purpose
 
-OpenContext.AgentBridge is intended to bridge the gap between limited chat-only AI APIs and the richer agentic development workflows teams need in real project work.
+OpenContext.AgentBridge is intended to bridge the gap between limited chat-only AI APIs and the richer agentic development workflows teams need in real project work. It is a control plane, simulator, diagnostics harness, and adapter layer rather than a full agent platform.
 
-The initial goal is to provide a workspace-scoped assistant that can:
+The initial goal is to help existing and future agent tools work against constrained gateways by providing:
 
-- Understand project files and repository context
-- Modify code directly within an approved workspace
-- Run shell commands and development tooling
-- Load skills for systems such as Azure DevOps Server, Splunk, Oracle, and other internal services
-- Persist project-aware chats and working context over time
+- OpenAI-compatible provider configuration for STARK-style gateways
+- Local simulation for fast personal-side testing
+- Repeatable diagnostics bundles for slower restricted-environment testing
+- Safe workspace boundaries for fallback tool execution
+- Lightweight workspace context for code-aware prompts
+- Skills and MCP adapter hooks where existing integrations can be reused
 
 ## Status
 
-This repository is starting fresh as the next iteration of the OpenContext orchestrator idea. The first implementation is a thin .NET CLI that establishes the workspace boundary, command execution, skill loading, model provider boundaries, and SQLite conversation storage.
+This repository is starting fresh as the next iteration of the OpenContext orchestrator idea. The first implementation is a thin .NET CLI that establishes the workspace boundary, command execution, skill loading, model provider boundaries, local simulation, diagnostics, and SQLite conversation storage.
+
+## Project Boundary
+
+AgentBridge should stay a bridge. It should use tools such as Aider, Continue, Cline, LiteLLM, Open WebUI, MCP servers, CLIs, and SDKs when they fit the constrained API and workstation environment.
+
+AgentBridge should build only the pieces that are missing because the target API or environment is constrained:
+
+- STARK/OpenAI-compatible API adapters and configuration
+- Local simulator and contract tests
+- Diagnostics and smoke-test packaging
+- Workspace policy and execution boundaries
+- Lightweight workspace maps and skill routing
+- Minimal fallback tool loop when an existing agent cannot run cleanly
+
+AgentBridge should not become a custom IDE, chat UI, full MCP platform, advanced repo indexer, or replacement for mature coding agents.
 
 ## Getting Started
 
@@ -151,7 +167,7 @@ Ask stores the conversation in `.agentbridge/agentbridge.db`:
 dotnet run --project src/OpenContext.AgentBridge.Cli -- ask . --executor host "Summarize this repository."
 ```
 
-`ask` now runs a structured action loop. The model must return either a tool request or a final answer as JSON, and AgentBridge validates and executes tool requests inside the selected workspace.
+`ask` runs a structured fallback action loop for constrained APIs. The model must return either a tool request or a final answer as JSON, and AgentBridge validates and executes tool requests inside the selected workspace.
 Each model turn includes a compact workspace map with detected solutions, projects, scripts, skills, docs, likely entry points, C#/PowerShell symbols, and git status so the model has repository orientation before it starts calling tools.
 Tool requests are printed as they run, followed by a run summary with tool counts, commands run, and current git changes.
 Use `--skill powershell` or `--skills powershell,splunk` to load only specific skills for a run. Without a skill filter, AgentBridge loads all available workspace and repository skills.
