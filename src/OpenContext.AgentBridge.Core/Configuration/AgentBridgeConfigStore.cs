@@ -144,7 +144,12 @@ public sealed class AgentBridgeConfigStore
                 FirstIntOrNull(
                     Environment.GetEnvironmentVariable("AGENTBRIDGE_OPENAI_MAX_TOKENS"),
                     Environment.GetEnvironmentVariable("AGENTBRIDGE_STARK_MAX_TOKENS"),
-                    openAiCompatible.MaxTokens)));
+                    openAiCompatible.MaxTokens),
+                FirstIntOrNull(
+                    Environment.GetEnvironmentVariable("AGENTBRIDGE_HTTP_TIMEOUT_SECONDS"),
+                    Environment.GetEnvironmentVariable("AGENTBRIDGE_OPENAI_TIMEOUT_SECONDS"),
+                    Environment.GetEnvironmentVariable("AGENTBRIDGE_STARK_TIMEOUT_SECONDS"),
+                    openAiCompatible.RequestTimeoutSeconds)));
     }
 
     private static string FirstNonBlank(params string?[] values)
@@ -176,6 +181,22 @@ public sealed class AgentBridgeConfigStore
     {
         if (int.TryParse(firstEnvironmentValue, out var parsed)
             || int.TryParse(secondEnvironmentValue, out parsed))
+        {
+            return parsed;
+        }
+
+        return configValue;
+    }
+
+    private static int? FirstIntOrNull(
+        string? firstEnvironmentValue,
+        string? secondEnvironmentValue,
+        string? thirdEnvironmentValue,
+        int? configValue)
+    {
+        if (int.TryParse(firstEnvironmentValue, out var parsed)
+            || int.TryParse(secondEnvironmentValue, out parsed)
+            || int.TryParse(thirdEnvironmentValue, out parsed))
         {
             return parsed;
         }

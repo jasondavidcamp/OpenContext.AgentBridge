@@ -187,7 +187,7 @@ internal static class ProgramMain
         var skills = await LoadSkillsAsync(workspace, options.SkillNames);
         var executor = CreateExecutor(config.DefaultExecutor);
 
-        using var httpClient = new HttpClient();
+        using var httpClient = CreateHttpClient(config);
         var provider = CreateModelProvider(httpClient, workspace, config);
 
         var loop = new AgentLoop(
@@ -401,7 +401,7 @@ internal static class ProgramMain
             return 1;
         }
 
-        using var httpClient = new HttpClient();
+        using var httpClient = CreateHttpClient(config);
         var client = new OpenAiCompatibleModelCatalogClient(
             httpClient,
             CreateOpenAiCompatibleOptions(workspace, config));
@@ -458,7 +458,7 @@ internal static class ProgramMain
                 OpenAiCompatibleApiKeyPrefix: options.ApiKeyPrefix,
                 LogModelTraffic: options.LogModelTraffic));
 
-        using var httpClient = new HttpClient();
+        using var httpClient = CreateHttpClient(config);
         var provider = CreateModelProvider(httpClient, workspace, config);
 
         Console.WriteLine($"Provider: {config.ModelProvider}");
@@ -558,6 +558,18 @@ internal static class ProgramMain
                 CreateOpenAiCompatibleOptions(workspace, config)),
             _ => throw new ArgumentException($"Unknown model provider: {config.ModelProvider}")
         };
+    }
+
+    private static HttpClient CreateHttpClient(EffectiveAgentBridgeConfig config)
+    {
+        var httpClient = new HttpClient();
+        if (string.Equals(NormalizeProviderName(config.ModelProvider), "openai-compatible", StringComparison.Ordinal)
+            && config.OpenAiCompatible.RequestTimeoutSeconds is > 0 and <= 3_600)
+        {
+            httpClient.Timeout = TimeSpan.FromSeconds(config.OpenAiCompatible.RequestTimeoutSeconds.Value);
+        }
+
+        return httpClient;
     }
 
     private static GeminiOptions CreateGeminiOptions(
@@ -874,6 +886,7 @@ internal static class ProgramMain
               AGENTBRIDGE_OPENAI_API_KEY or AGENTBRIDGE_STARK_API_KEY
               AGENTBRIDGE_OPENAI_ENDPOINT or AGENTBRIDGE_STARK_ENDPOINT
               AGENTBRIDGE_OPENAI_MODEL or AGENTBRIDGE_STARK_MODEL
+              AGENTBRIDGE_HTTP_TIMEOUT_SECONDS or AGENTBRIDGE_STARK_TIMEOUT_SECONDS
               AGENTBRIDGE_DEFAULT_EXECUTOR
               AGENTBRIDGE_MAX_ITERATIONS
               AGENTBRIDGE_LOG_MODEL_TRAFFIC
@@ -940,7 +953,8 @@ internal static class ProgramMain
                 config.OpenAiCompatible.ApiKeyHeader,
                 config.OpenAiCompatible.ApiKeyPrefix,
                 config.OpenAiCompatible.Temperature,
-                config.OpenAiCompatible.MaxTokens
+                config.OpenAiCompatible.MaxTokens,
+                config.OpenAiCompatible.RequestTimeoutSeconds
             }
         };
     }

@@ -15,4 +15,6 @@ public sealed class OpenAiCompatibleConfig
     public float? Temperature { get; init; }
 
     public int? MaxTokens { get; init; }
+
+    public int? RequestTimeoutSeconds { get; init; }
 }

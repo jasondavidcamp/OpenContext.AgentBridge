@@ -2,6 +2,8 @@
 param(
     [string]$Endpoint = $env:AGENTBRIDGE_STARK_ENDPOINT,
     [string]$Model = $(if ($env:AGENTBRIDGE_STARK_MODEL) { $env:AGENTBRIDGE_STARK_MODEL } else { "gemini-2.5-flash" }),
+    [int]$ModelTimeoutSeconds = 300,
+    [int]$MaxTokens = 1500,
     [int]$NoEditMaxIterations = 8,
     [int]$EditMaxIterations = 12,
     [switch]$SkipBuild,
@@ -94,6 +96,8 @@ try {
     $env:AGENTBRIDGE_MODEL_PROVIDER = "stark"
     $env:AGENTBRIDGE_STARK_ENDPOINT = $Endpoint.TrimEnd("/")
     $env:AGENTBRIDGE_STARK_MODEL = $Model
+    $env:AGENTBRIDGE_STARK_TIMEOUT_SECONDS = "$ModelTimeoutSeconds"
+    $env:AGENTBRIDGE_STARK_MAX_TOKENS = "$MaxTokens"
 
     $shell = Get-PowerShellHost
 
@@ -101,6 +105,8 @@ try {
     Write-Host "Repository: $repoRoot"
     Write-Host "Endpoint: $($env:AGENTBRIDGE_STARK_ENDPOINT)"
     Write-Host "Model: $($env:AGENTBRIDGE_STARK_MODEL)"
+    Write-Host "Model timeout seconds: $($env:AGENTBRIDGE_STARK_TIMEOUT_SECONDS)"
+    Write-Host "Max tokens: $($env:AGENTBRIDGE_STARK_MAX_TOKENS)"
     Write-Host "PowerShell host: $($shell.FilePath)"
     Write-Host "API key: configured, not displayed"
 

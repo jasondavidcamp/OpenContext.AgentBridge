@@ -113,7 +113,7 @@ For a one-command STARK smoke test, run:
 .\scripts\Invoke-StarkSmoke.ps1 -Endpoint "https://stark.example.mil/v1"
 ```
 
-The script prompts for the API key without echoing it, builds the repo, lists/tests STARK models, runs a no-edit agent inspection, runs a tiny PowerShell edit/validate/diff loop, and then resets the sample file.
+The script prompts for the API key without echoing it, builds the repo, lists/tests STARK models, runs a no-edit agent inspection, runs a tiny PowerShell edit/validate/diff loop, and then resets the sample file. It sets a longer model timeout for slow gateway responses.
 
 Gemini can also be tested through Google's OpenAI-compatible endpoint:
 

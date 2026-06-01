@@ -20,4 +20,5 @@ public sealed record EffectiveOpenAiCompatibleConfig(
     string ApiKeyHeader,
     string? ApiKeyPrefix,
     float? Temperature,
-    int? MaxTokens);
+    int? MaxTokens,
+    int? RequestTimeoutSeconds);

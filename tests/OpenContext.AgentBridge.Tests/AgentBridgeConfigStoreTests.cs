@@ -37,7 +37,8 @@ public sealed class AgentBridgeConfigStoreTests
                         ApiKeyHeader = "X-STARK-Key",
                         ApiKeyPrefix = string.Empty,
                         Temperature = 0.1f,
-                        MaxTokens = 1_000
+                        MaxTokens = 1_000,
+                        RequestTimeoutSeconds = 300
                     }
                 });
 
@@ -56,6 +57,7 @@ public sealed class AgentBridgeConfigStoreTests
             Assert.Equal(string.Empty, config.OpenAiCompatible.ApiKeyPrefix);
             Assert.Equal(0.1f, config.OpenAiCompatible.Temperature);
             Assert.Equal(1_000, config.OpenAiCompatible.MaxTokens);
+            Assert.Equal(300, config.OpenAiCompatible.RequestTimeoutSeconds);
         }
         finally
         {
@@ -74,6 +76,7 @@ public sealed class AgentBridgeConfigStoreTests
             Environment.SetEnvironmentVariable("AGENTBRIDGE_GEMINI_MODEL", "env-model");
             Environment.SetEnvironmentVariable("AGENTBRIDGE_STARK_MODEL", "env-stark-model");
             Environment.SetEnvironmentVariable("AGENTBRIDGE_STARK_ENDPOINT", "https://stark-env.test/v1");
+            Environment.SetEnvironmentVariable("AGENTBRIDGE_STARK_TIMEOUT_SECONDS", "240");
             Environment.SetEnvironmentVariable("AGENTBRIDGE_DEFAULT_EXECUTOR", "docker");
 
             var workspace = WorkspaceContext.FromPath(root);
@@ -101,6 +104,7 @@ public sealed class AgentBridgeConfigStoreTests
             Assert.Equal("env-stark-model", config.OpenAiCompatible.Model);
             Assert.Equal("https://stark-env.test/v1", config.OpenAiCompatible.Endpoint);
             Assert.Equal("override-stark-key", config.OpenAiCompatible.ApiKey);
+            Assert.Equal(240, config.OpenAiCompatible.RequestTimeoutSeconds);
         }
         finally
         {
@@ -140,7 +144,10 @@ public sealed class AgentBridgeConfigStoreTests
             "AGENTBRIDGE_STARK_API_KEY_HEADER",
             "AGENTBRIDGE_STARK_API_KEY_PREFIX",
             "AGENTBRIDGE_STARK_TEMPERATURE",
-            "AGENTBRIDGE_STARK_MAX_TOKENS"
+            "AGENTBRIDGE_STARK_MAX_TOKENS",
+            "AGENTBRIDGE_STARK_TIMEOUT_SECONDS",
+            "AGENTBRIDGE_OPENAI_TIMEOUT_SECONDS",
+            "AGENTBRIDGE_HTTP_TIMEOUT_SECONDS"
         };
 
         private readonly Dictionary<string, string?> _previous;

@@ -67,6 +67,7 @@ $env:AGENTBRIDGE_MODEL_PROVIDER = "stark"
 $env:AGENTBRIDGE_STARK_ENDPOINT = "https://stark.example.mil/v1"
 $env:AGENTBRIDGE_STARK_MODEL = "<model-id-from-v1-models>"
 $env:AGENTBRIDGE_STARK_API_KEY = "<key>"
+$env:AGENTBRIDGE_STARK_TIMEOUT_SECONDS = "300"
 ```
 
 If the gateway expects a custom API key header instead of `Authorization: Bearer <key>`:
@@ -75,6 +76,8 @@ If the gateway expects a custom API key header instead of `Authorization: Bearer
 $env:AGENTBRIDGE_STARK_API_KEY_HEADER = "X-STARK-Key"
 $env:AGENTBRIDGE_STARK_API_KEY_PREFIX = ""
 ```
+
+For slow gateways, set `AGENTBRIDGE_STARK_TIMEOUT_SECONDS` or the provider-neutral `AGENTBRIDGE_HTTP_TIMEOUT_SECONDS`. The default .NET HTTP timeout is 100 seconds when this is not configured.
 
 The generic names also work:
 
