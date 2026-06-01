@@ -6,14 +6,15 @@ public static class BuiltInTools
     {
         return new IAgentTool[]
         {
-            new ApplyPatchTool(),
-            new GitDiffTool(),
-            new GitStatusTool(),
             new ListFilesTool(),
             new ReadFileTool(),
-            new RunCommandTool(),
+            new ReplaceTextTool(),
             new SearchTool(),
-            new WriteFileTool()
+            new ApplyPatchTool(),
+            new WriteFileTool(),
+            new RunCommandTool(),
+            new GitStatusTool(),
+            new GitDiffTool()
         };
     }
 }

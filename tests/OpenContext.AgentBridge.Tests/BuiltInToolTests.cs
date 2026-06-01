@@ -282,6 +282,108 @@ public sealed class BuiltInToolTests
     }
 
     [Fact]
+    public async Task ReplaceTextTool_replaces_single_exact_occurrence()
+    {
+        var root = CreateTempDirectory();
+
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(root, "script.ps1"), "Hello, AgentLab.");
+
+            var workspace = WorkspaceContext.FromPath(root);
+            var context = new ToolExecutionContext(workspace, new HostWorkspaceExecutor());
+            var directive = new AgentDirective(
+                "tool",
+                "replace_text",
+                new JsonObject
+                {
+                    ["path"] = "script.ps1",
+                    ["old_text"] = "Hello, AgentLab.",
+                    ["new_text"] = "Hello, AgentLab from AgentBridge."
+                },
+                null);
+
+            var result = await new ReplaceTextTool().ExecuteAsync(context, directive);
+
+            Assert.True(result.IsSuccess, result.Content);
+            Assert.Equal("Hello, AgentLab from AgentBridge.", await File.ReadAllTextAsync(Path.Combine(root, "script.ps1")));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ReplaceTextTool_rejects_multiple_occurrences_without_replace_all()
+    {
+        var root = CreateTempDirectory();
+
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(root, "script.ps1"), "Hello. Hello.");
+
+            var workspace = WorkspaceContext.FromPath(root);
+            var context = new ToolExecutionContext(workspace, new HostWorkspaceExecutor());
+            var directive = new AgentDirective(
+                "tool",
+                "replace_text",
+                new JsonObject
+                {
+                    ["path"] = "script.ps1",
+                    ["old_text"] = "Hello.",
+                    ["new_text"] = "Hi."
+                },
+                null);
+
+            var result = await new ReplaceTextTool().ExecuteAsync(context, directive);
+
+            Assert.False(result.IsSuccess);
+            Assert.Contains("replace_all=true", result.Content);
+            Assert.Equal("Hello. Hello.", await File.ReadAllTextAsync(Path.Combine(root, "script.ps1")));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ReplaceTextTool_replaces_all_when_requested()
+    {
+        var root = CreateTempDirectory();
+
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(root, "script.ps1"), "Hello. Hello.");
+
+            var workspace = WorkspaceContext.FromPath(root);
+            var context = new ToolExecutionContext(workspace, new HostWorkspaceExecutor());
+            var directive = new AgentDirective(
+                "tool",
+                "replace_text",
+                new JsonObject
+                {
+                    ["path"] = "script.ps1",
+                    ["old_text"] = "Hello.",
+                    ["new_text"] = "Hi.",
+                    ["replace_all"] = true,
+                    ["expected_replacements"] = 2
+                },
+                null);
+
+            var result = await new ReplaceTextTool().ExecuteAsync(context, directive);
+
+            Assert.True(result.IsSuccess, result.Content);
+            Assert.Equal("Hi. Hi.", await File.ReadAllTextAsync(Path.Combine(root, "script.ps1")));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task WriteFileTool_rejects_paths_outside_workspace()
     {
         var root = CreateTempDirectory();

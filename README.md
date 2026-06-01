@@ -151,6 +151,7 @@ Starter tools:
 - `apply_patch`
 - `list_files`
 - `read_file`
+- `replace_text`
 - `search`
 - `write_file`
 - `run_command`

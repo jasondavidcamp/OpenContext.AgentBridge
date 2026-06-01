@@ -6,7 +6,7 @@ public sealed class ApplyPatchTool : IAgentTool
 {
     public ToolDefinition Definition { get; } = new(
         "apply_patch",
-        "Apply a unified diff patch inside the workspace after validating patch paths.",
+        "Apply a unified diff patch inside the workspace after validating patch paths. Use for multi-line targeted edits; use replace_text for small exact substitutions.",
         """{"patch":"unified diff text","check_only":false}""");
 
     public async Task<ToolResult> ExecuteAsync(
