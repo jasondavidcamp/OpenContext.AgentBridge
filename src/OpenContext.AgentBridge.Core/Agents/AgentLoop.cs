@@ -33,6 +33,7 @@ public sealed class AgentLoop
     {
         options ??= new AgentLoopOptions();
         var context = new ToolExecutionContext(workspace, executor);
+        var successfulToolCalls = 0;
 
         for (var turn = 1; turn <= options.MaxToolIterations; turn++)
         {
@@ -88,6 +89,29 @@ public sealed class AgentLoop
 
             if (string.Equals(directive.Type, "final", StringComparison.OrdinalIgnoreCase))
             {
+                if (successfulToolCalls < options.RequiredToolCallsBeforeFinal)
+                {
+                    var observation = FormatPrematureFinalObservation(
+                        response.Content,
+                        successfulToolCalls,
+                        options.RequiredToolCallsBeforeFinal);
+
+                    options.Progress?.Report(new AgentProgressEvent(
+                        AgentProgressKind.InvalidModelResponse,
+                        turn,
+                        "Model returned a final answer before satisfying required tool use.",
+                        Preview: Preview(response.Content)));
+
+                    await _conversationStore
+                        .AppendMessageAsync(
+                            conversationId,
+                            new AgentMessage("user", observation, DateTimeOffset.UtcNow),
+                            cancellationToken)
+                        .ConfigureAwait(false);
+
+                    continue;
+                }
+
                 var finalMessage = directive.Message ?? response.Content;
                 options.Progress?.Report(new AgentProgressEvent(
                     AgentProgressKind.FinalAnswer,
@@ -116,6 +140,10 @@ public sealed class AgentLoop
                 directive.Arguments.ToJsonString()));
 
             var result = await ExecuteToolAsync(context, directive, cancellationToken).ConfigureAwait(false);
+            if (result.IsSuccess)
+            {
+                successfulToolCalls++;
+            }
 
             await _conversationStore
                 .AppendToolCallAsync(
@@ -247,6 +275,27 @@ public sealed class AgentLoop
             Use one of these forms:
             {toolExample}
             {finalExample}
+            """;
+    }
+
+    private static string FormatPrematureFinalObservation(
+        string response,
+        int successfulToolCalls,
+        int requiredToolCalls)
+    {
+        const string toolExample = """{"type":"tool","tool":"read_file","arguments":{"path":"README.md"}}""";
+
+        return $"""
+            FINAL_ANSWER_REJECTED
+            The previous response was a final answer, but this run requires at least {requiredToolCalls} successful tool call(s) before a final answer.
+            Successful tool calls so far: {successfulToolCalls}.
+
+            Response preview:
+            {Preview(response, 1_200)}
+
+            Respond with exactly one JSON object and no surrounding prose.
+            Request an AgentBridge tool next, for example:
+            {toolExample}
             """;
     }
 

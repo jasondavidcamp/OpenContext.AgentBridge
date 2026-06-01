@@ -222,6 +222,56 @@ public sealed class AgentLoopTests
         }
     }
 
+    [Fact]
+    public async Task RunAsync_rejects_final_answer_until_required_tool_calls_are_satisfied()
+    {
+        var root = CreateTempDirectory();
+
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(root, "README.md"), "# AgentBridge");
+
+            var workspace = WorkspaceContext.FromPath(root);
+            workspace.EnsureLocalState();
+
+            var store = new SqliteConversationStore(workspace.ConversationDatabasePath);
+            await store.InitializeAsync();
+            var conversationId = await store.CreateConversationAsync(workspace.RootPath);
+            await store.AppendMessageAsync(
+                conversationId,
+                new AgentMessage("user", "Read then summarize.", DateTimeOffset.UtcNow));
+
+            var provider = new QueueModelProvider(
+                """{"type":"final","message":"Done without tools."}""",
+                """{"type":"tool","tool":"read_file","arguments":{"path":"README.md"}}""",
+                """{"type":"final","message":"Done after tools."}""");
+            var loop = new AgentLoop(
+                provider,
+                store,
+                new ToolRegistry(BuiltInTools.CreateDefault()));
+
+            var result = await loop.RunAsync(
+                conversationId,
+                workspace,
+                new HostWorkspaceExecutor(),
+                Array.Empty<OpenContext.AgentBridge.Core.Skills.Skill>(),
+                new AgentLoopOptions(8, RequiredToolCallsBeforeFinal: 1));
+
+            var messages = await store.ReadMessagesAsync(conversationId);
+
+            Assert.Equal("Done after tools.", result.FinalMessage);
+            Assert.Equal(3, result.Turns);
+            Assert.Contains(messages, message => message.Content.StartsWith("FINAL_ANSWER_REJECTED", StringComparison.Ordinal));
+            var toolCall = Assert.Single(result.ToolCalls);
+            Assert.Equal("read_file", toolCall.ToolName);
+            Assert.True(toolCall.IsSuccess);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
 
     private sealed class ListProgress : IProgress<AgentProgressEvent>
     {

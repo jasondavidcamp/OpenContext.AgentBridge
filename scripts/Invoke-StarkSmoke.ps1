@@ -107,6 +107,21 @@ function Assert-CleanSample {
     Write-Host "No-edit smoke left sample file clean."
 }
 
+function Assert-NonEmptyDiff {
+    param([string]$Path)
+
+    $diff = git diff -- $Path
+    if ($LASTEXITCODE -ne 0) {
+        throw "git diff failed while checking edit smoke result."
+    }
+
+    if ([string]::IsNullOrWhiteSpace(($diff -join [Environment]::NewLine))) {
+        throw "Edit smoke produced no diff for $Path."
+    }
+
+    Write-Host "Edit smoke produced a non-empty diff for $Path."
+}
+
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $samplePath = "examples/powershell-sandbox/Get-Greeting.ps1"
 $completed = $false
@@ -197,6 +212,8 @@ try {
             "--new",
             "--skill",
             "powershell",
+            "--require-tool-calls",
+            "2",
             "--max-iterations",
             "$NoEditMaxIterations",
             "Only inspect examples/powershell-sandbox. Read the README.md and Get-Greeting.ps1, then return a final summary in no more than three plain sentences. Do not edit files."
@@ -217,6 +234,8 @@ try {
             "--new",
             "--skill",
             "powershell",
+            "--require-tool-calls",
+            "4",
             "--max-iterations",
             "$EditMaxIterations",
             "Only work in examples/powershell-sandbox. Improve the PowerShell script help text in Get-Greeting.ps1 without changing runtime behavior. Preserve the Name parameter and greeting output. Validate by running: pwsh -NoProfile -File .\examples\powershell-sandbox\Get-Greeting.ps1 -Name AgentBridge. Then show the git diff and return a final summary in no more than three plain sentences."
@@ -224,6 +243,7 @@ try {
 
         Write-Section "Final Validation"
         Invoke-NativeCommand $shell.FilePath ($shell.Prefix + @("-File", ".\$samplePath", "-Name", "AgentBridge"))
+        Assert-NonEmptyDiff -Path $samplePath
 
         Write-Section "Final Status"
         Invoke-NativeCommand "git" @("status", "--short")

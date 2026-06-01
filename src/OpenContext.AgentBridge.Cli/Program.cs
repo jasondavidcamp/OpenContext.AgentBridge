@@ -162,7 +162,7 @@ internal static class ProgramMain
     {
         if (args.Length < 2)
         {
-            Console.Error.WriteLine("Usage: agentbridge ask <workspace> [--new|--conversation id] [--executor host|docker] [--max-iterations n] [--skill name|--skills names] <message>");
+            Console.Error.WriteLine("Usage: agentbridge ask <workspace> [--new|--conversation id] [--executor host|docker] [--max-iterations n] [--require-tool-calls n] [--skill name|--skills names] <message>");
             return 1;
         }
 
@@ -205,7 +205,10 @@ internal static class ProgramMain
             workspace,
             executor,
             skills,
-            new AgentLoopOptions(config.MaxIterations, new ConsoleAgentProgress()));
+            new AgentLoopOptions(
+                config.MaxIterations,
+                new ConsoleAgentProgress(),
+                RequiredToolCallsBeforeFinal: options.RequiredToolCallsBeforeFinal));
 
         Console.WriteLine();
         Console.WriteLine("Final:");
@@ -870,7 +873,7 @@ internal static class ProgramMain
               agentbridge doctor [workspace] [--executor host|docker]
               agentbridge run [workspace] [--executor host|docker] [--timeout-minutes n] -- <command>
               agentbridge skills [workspace]
-              agentbridge ask <workspace> [--new|--conversation id] [--executor host|docker] [--max-iterations n] [--skill name|--skills names] <message>
+              agentbridge ask <workspace> [--new|--conversation id] [--executor host|docker] [--max-iterations n] [--require-tool-calls n] [--skill name|--skills names] <message>
               agentbridge conversations list [workspace]
               agentbridge conversations show [workspace] <conversation-id>
               agentbridge config init [workspace] [--force]
@@ -1054,6 +1057,7 @@ internal static class ProgramMain
         string WorkspacePath,
         string? Executor,
         int? MaxIterations,
+        int RequiredToolCallsBeforeFinal,
         bool StartNew,
         string? ConversationId,
         string[] SkillNames,
@@ -1064,6 +1068,7 @@ internal static class ProgramMain
             var workspacePath = args[0];
             string? executor = null;
             int? maxIterations = null;
+            var requiredToolCallsBeforeFinal = 0;
             var startNew = false;
             string? conversationId = null;
             var skillNames = new List<string>();
@@ -1078,6 +1083,9 @@ internal static class ProgramMain
                         break;
                     case "--max-iterations" when index + 1 < args.Length && int.TryParse(args[++index], out var parsed):
                         maxIterations = Math.Clamp(parsed, 1, 20);
+                        break;
+                    case "--require-tool-calls" when index + 1 < args.Length && int.TryParse(args[++index], out var requiredToolCalls):
+                        requiredToolCallsBeforeFinal = Math.Clamp(requiredToolCalls, 0, 20);
                         break;
                     case "--new":
                         startNew = true;
@@ -1104,6 +1112,7 @@ internal static class ProgramMain
                 workspacePath,
                 executor,
                 maxIterations,
+                requiredToolCallsBeforeFinal,
                 startNew,
                 conversationId,
                 skillNames.ToArray(),

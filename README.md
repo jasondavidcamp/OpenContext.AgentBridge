@@ -135,6 +135,7 @@ dotnet run --project src/OpenContext.AgentBridge.Cli -- ask . --executor host "S
 `ask` now runs a structured action loop. The model must return either a tool request or a final answer as JSON, and AgentBridge validates and executes tool requests inside the selected workspace.
 Tool requests are printed as they run, followed by a run summary with tool counts, commands run, and current git changes.
 Use `--skill powershell` or `--skills powershell,splunk` to load only specific skills for a run. Without a skill filter, AgentBridge loads all available workspace and repository skills.
+Use `--require-tool-calls <n>` when a run must prove that tools were actually used before accepting a final answer.
 
 Start a new conversation:
 

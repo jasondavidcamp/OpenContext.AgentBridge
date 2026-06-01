@@ -43,6 +43,8 @@ File tools enforce the workspace boundary. `replace_text` is safest for small ex
 
 AgentBridge accepts a small set of recovery aliases for common model mistakes, such as `execute_command` -> `run_command` and `list_directory` -> `list_files`, but prompts still instruct models to use canonical tool names.
 
+For smoke tests or high-confidence workflows, `ask --require-tool-calls <n>` rejects final answers until the current run has completed at least that many successful tool calls. This is useful when a model is prone to claiming it inspected, edited, validated, or diffed files without actually using tools.
+
 ## Parser Recovery
 
 AgentBridge accepts a JSON object directly, inside a fenced code block, or embedded in otherwise harmless prose. If no valid directive can be parsed, the response is stored and AgentBridge adds a `MODEL_RESPONSE_PARSE_ERROR` observation asking the model to retry with exactly one JSON object.

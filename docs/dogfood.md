@@ -20,7 +20,7 @@ dotnet run --project src\OpenContext.AgentBridge.Cli -- ask examples\sandbox-pro
 ## Edit Smoke
 
 ```powershell
-dotnet run --project src\OpenContext.AgentBridge.Cli -- ask examples\sandbox-project --new --max-iterations 8 "Modify the app so the greeting includes the phrase 'from AgentBridge', run the validation command, then show the git diff."
+dotnet run --project src\OpenContext.AgentBridge.Cli -- ask examples\sandbox-project --new --max-iterations 8 --require-tool-calls 3 "Modify the app so the greeting includes the phrase 'from AgentBridge', run the validation command, then show the git diff."
 ```
 
 Review the diff before committing sandbox changes. Reset or keep the sandbox change depending on what you meant to test.
@@ -28,7 +28,7 @@ Review the diff before committing sandbox changes. Reset or keep the sandbox cha
 ## PowerShell Skill Smoke
 
 ```powershell
-dotnet run --project src\OpenContext.AgentBridge.Cli -- ask examples\powershell-sandbox --new --skill powershell --max-iterations 8 "Inspect this PowerShell sandbox, improve the script help text without changing runtime behavior, run the validation command, then show the git diff."
+dotnet run --project src\OpenContext.AgentBridge.Cli -- ask examples\powershell-sandbox --new --skill powershell --max-iterations 8 --require-tool-calls 4 "Inspect this PowerShell sandbox, improve the script help text without changing runtime behavior, run the validation command, then show the git diff."
 ```
 
 ## What To Watch
