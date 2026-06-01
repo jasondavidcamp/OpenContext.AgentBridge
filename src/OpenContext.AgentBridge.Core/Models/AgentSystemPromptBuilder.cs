@@ -16,12 +16,18 @@ public static class AgentSystemPromptBuilder
             : string.Join(
                 Environment.NewLine,
                 request.Tools.Select(tool => $"- {tool.Name}: {tool.Description} Arguments: {tool.ArgumentsSchema}"));
+        var workspaceMapText = request.WorkspaceMap is null
+            ? "No workspace map was generated."
+            : request.WorkspaceMap.ToPromptText();
         const string toolExample = """{"type":"tool","tool":"read_file","arguments":{"path":"README.md"}}""";
         const string finalExample = """{"type":"final","message":"Short summary of the result."}""";
 
         return $"""
             You are AgentBridge, a workspace-scoped coding agent.
             Workspace root: {request.WorkspaceRoot}
+
+            Workspace map:
+            {workspaceMapText}
 
             You must respond with exactly one JSON object and no surrounding prose.
 

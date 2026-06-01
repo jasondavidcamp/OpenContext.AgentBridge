@@ -40,6 +40,7 @@ internal static class ProgramMain
                 "doctor" => await DoctorAsync(args[1..]),
                 "run" => await RunCommandAsync(args[1..]),
                 "skills" => await ListSkillsAsync(args[1..]),
+                "workspace" or "workspaces" => await WorkspaceAsync(args[1..]),
                 "ask" => await AskAsync(args[1..]),
                 "conversation" or "conversations" => await ConversationsAsync(args[1..]),
                 "config" => await ConfigAsync(args[1..]),
@@ -156,6 +157,40 @@ internal static class ProgramMain
         }
 
         return 0;
+    }
+
+    private static Task<int> WorkspaceAsync(string[] args)
+    {
+        if (args.Length == 0 || IsHelp(args[0]))
+        {
+            WriteWorkspaceHelp();
+            return Task.FromResult(0);
+        }
+
+        return args[0].ToLowerInvariant() switch
+        {
+            "inspect" => InspectWorkspaceAsync(args[1..]),
+            _ => Task.FromResult(UnknownWorkspaceCommand(args[0]))
+        };
+    }
+
+    private static Task<int> InspectWorkspaceAsync(string[] args)
+    {
+        var options = WorkspaceInspectOptions.Parse(args);
+        var workspace = WorkspaceContext.FromPath(options.WorkspacePath);
+        var map = WorkspaceMapBuilder.Build(workspace);
+
+        if (options.AsJson)
+        {
+            Console.WriteLine(JsonSerializer.Serialize(map, JsonOptions));
+        }
+        else
+        {
+            Console.WriteLine($"Workspace: {workspace.RootPath}");
+            Console.WriteLine(map.ToPromptText());
+        }
+
+        return Task.FromResult(0);
     }
 
     private static async Task<int> AskAsync(string[] args)
@@ -842,6 +877,14 @@ internal static class ProgramMain
         return 1;
     }
 
+    private static int UnknownWorkspaceCommand(string command)
+    {
+        Console.Error.WriteLine($"Unknown workspace command: {command}");
+        Console.Error.WriteLine();
+        WriteWorkspaceHelp();
+        return 1;
+    }
+
     private static int UnknownConfigCommand(string command)
     {
         Console.Error.WriteLine($"Unknown config command: {command}");
@@ -873,6 +916,7 @@ internal static class ProgramMain
               agentbridge doctor [workspace] [--executor host|docker]
               agentbridge run [workspace] [--executor host|docker] [--timeout-minutes n] -- <command>
               agentbridge skills [workspace]
+              agentbridge workspace inspect [workspace] [--json]
               agentbridge ask <workspace> [--new|--conversation id] [--executor host|docker] [--max-iterations n] [--require-tool-calls n] [--skill name|--skills names] <message>
               agentbridge conversations list [workspace]
               agentbridge conversations show [workspace] <conversation-id>
@@ -894,6 +938,16 @@ internal static class ProgramMain
               AGENTBRIDGE_MAX_ITERATIONS
               AGENTBRIDGE_LOG_MODEL_TRAFFIC
               AGENTBRIDGE_DOCKER_IMAGE
+            """);
+    }
+
+    private static void WriteWorkspaceHelp()
+    {
+        Console.WriteLine("""
+            AgentBridge Workspace
+
+            Usage:
+              agentbridge workspace inspect [workspace] [--json]
             """);
     }
 
@@ -1117,6 +1171,31 @@ internal static class ProgramMain
                 conversationId,
                 skillNames.ToArray(),
                 string.Join(' ', messageParts));
+        }
+    }
+
+    private sealed record WorkspaceInspectOptions(
+        string WorkspacePath,
+        bool AsJson)
+    {
+        public static WorkspaceInspectOptions Parse(string[] args)
+        {
+            var workspacePath = Directory.GetCurrentDirectory();
+            var asJson = false;
+
+            foreach (var argument in args)
+            {
+                if (string.Equals(argument, "--json", StringComparison.OrdinalIgnoreCase))
+                {
+                    asJson = true;
+                }
+                else if (!argument.StartsWith("--", StringComparison.Ordinal))
+                {
+                    workspacePath = argument;
+                }
+            }
+
+            return new WorkspaceInspectOptions(workspacePath, asJson);
         }
     }
 

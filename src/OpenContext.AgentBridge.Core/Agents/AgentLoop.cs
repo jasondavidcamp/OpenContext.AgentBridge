@@ -45,6 +45,7 @@ public sealed class AgentLoop
             var messages = await _conversationStore
                 .ReadMessagesAsync(conversationId, cancellationToken)
                 .ConfigureAwait(false);
+            var workspaceMap = WorkspaceMapBuilder.Build(workspace);
 
             var response = await _modelProvider
                 .CompleteAsync(
@@ -52,7 +53,8 @@ public sealed class AgentLoop
                         workspace.RootPath,
                         messages,
                         skills,
-                        _toolRegistry.Definitions),
+                        _toolRegistry.Definitions,
+                        workspaceMap),
                     cancellationToken)
                 .ConfigureAwait(false);
 
