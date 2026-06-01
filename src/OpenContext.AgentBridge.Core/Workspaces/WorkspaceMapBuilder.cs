@@ -7,6 +7,7 @@ public static class WorkspaceMapBuilder
     private const int MaxFilesToInspect = 5_000;
     private const int MaxGitStatusLines = 12;
     private const int MaxGroupItems = 24;
+    private const int MaxSymbolItems = 40;
 
     private static readonly HashSet<string> IgnoredDirectoryNames = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -105,6 +106,11 @@ public static class WorkspaceMapBuilder
             Limit(files.Where(IsProjectFile)),
             Limit(files.Where(IsPackageFile)),
             Limit(files.Where(IsLikelyEntryPoint)),
+            Limit(
+                WorkspaceSymbolExtractor.Extract(
+                    workspace.RootPath,
+                    files.Where(IsSymbolSourceFile)),
+                MaxSymbolItems),
             Limit(files.Where(IsScriptFile)),
             Limit(files.Where(IsSkillFile)),
             Limit(files.Where(IsDocumentationFile)));
@@ -285,6 +291,13 @@ public static class WorkspaceMapBuilder
         return ScriptExtensions.Contains(Path.GetExtension(path));
     }
 
+    private static bool IsSymbolSourceFile(string path)
+    {
+        return string.Equals(Path.GetExtension(path), ".cs", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(Path.GetExtension(path), ".ps1", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(Path.GetExtension(path), ".psm1", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static bool IsSkillFile(string path)
     {
         return path.StartsWith("skills/", StringComparison.OrdinalIgnoreCase)
@@ -300,12 +313,12 @@ public static class WorkspaceMapBuilder
                 || string.Equals(fileName, "CHANGELOG.md", StringComparison.OrdinalIgnoreCase));
     }
 
-    private static IReadOnlyList<string> Limit(IEnumerable<string> paths)
+    private static IReadOnlyList<string> Limit(IEnumerable<string> paths, int maxItems = MaxGroupItems)
     {
         return paths
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
-            .Take(MaxGroupItems)
+            .Take(maxItems)
             .ToArray();
     }
 }

@@ -20,6 +20,7 @@ public sealed class AgentSystemPromptBuilderTests
             new[] { "src/Sample/Sample.csproj" },
             Array.Empty<string>(),
             new[] { "src/Sample/Program.cs" },
+            new[] { "src/Sample/Program.cs: class Program" },
             Array.Empty<string>(),
             new[] { "skills/powershell.md" },
             new[] { "docs/usage.md" });
@@ -45,6 +46,7 @@ public sealed class AgentSystemPromptBuilderTests
         Assert.Contains("Root name: SampleRepo", prompt);
         Assert.Contains("Projects: src/Sample/Sample.csproj", prompt);
         Assert.Contains("Likely entry points: src/Sample/Program.cs", prompt);
+        Assert.Contains("Code symbols: src/Sample/Program.cs: class Program", prompt);
         Assert.Contains("# Skill: PowerShell", prompt);
         Assert.Contains("- read_file: Read a file.", prompt);
     }

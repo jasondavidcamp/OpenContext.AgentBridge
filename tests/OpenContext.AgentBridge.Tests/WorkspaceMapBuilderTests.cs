@@ -15,8 +15,30 @@ public sealed class WorkspaceMapBuilderTests
             await WriteAsync(root, "Sample.sln", string.Empty);
             await WriteAsync(root, "global.json", "{}");
             await WriteAsync(root, "src/App/App.csproj", "<Project />");
-            await WriteAsync(root, "src/App/Program.cs", "Console.WriteLine();");
-            await WriteAsync(root, "scripts/Build.ps1", "Write-Host build");
+            await WriteAsync(
+                root,
+                "src/App/Program.cs",
+                """
+                namespace Sample;
+
+                public interface IGreetingService
+                {
+                    string Greet(string name);
+                }
+
+                public sealed class GreetingService : IGreetingService
+                {
+                    public string Greet(string name) => $"Hello, {name}!";
+                }
+                """);
+            await WriteAsync(
+                root,
+                "scripts/Build.ps1",
+                """
+                function Invoke-SampleBuild {
+                    Write-Host build
+                }
+                """);
             await WriteAsync(root, "skills/powershell.md", "# PowerShell");
             await WriteAsync(root, "docs/usage.md", "# Usage");
             await WriteAsync(root, ".agentbridge/config.json", "{}");
@@ -33,6 +55,10 @@ public sealed class WorkspaceMapBuilderTests
             Assert.Contains("global.json", map.PackageFiles);
             Assert.Contains("src/App/Program.cs", map.SourceEntryPoints);
             Assert.Contains("scripts/Build.ps1", map.Scripts);
+            Assert.Contains("src/App/Program.cs: interface IGreetingService", map.CodeSymbols);
+            Assert.Contains("src/App/Program.cs: class GreetingService", map.CodeSymbols);
+            Assert.Contains("src/App/Program.cs: string GreetingService.Greet(string name)", map.CodeSymbols);
+            Assert.Contains("scripts/Build.ps1: function Invoke-SampleBuild", map.CodeSymbols);
             Assert.Contains("skills/powershell.md", map.Skills);
             Assert.Contains("docs/usage.md", map.Documentation);
             Assert.DoesNotContain(map.RootFiles, path => path.Contains(".agentbridge", StringComparison.OrdinalIgnoreCase));
@@ -60,6 +86,7 @@ public sealed class WorkspaceMapBuilderTests
             Assert.Contains("Root name:", text);
             Assert.Contains("Git status:", text);
             Assert.Contains("Projects: src/App/App.csproj", text);
+            Assert.Contains("Code symbols:", text);
             Assert.Contains("Documentation: README.md", text);
         }
         finally

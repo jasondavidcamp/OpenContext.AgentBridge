@@ -11,6 +11,7 @@ public sealed record WorkspaceMap(
     IReadOnlyList<string> ProjectFiles,
     IReadOnlyList<string> PackageFiles,
     IReadOnlyList<string> SourceEntryPoints,
+    IReadOnlyList<string> CodeSymbols,
     IReadOnlyList<string> Scripts,
     IReadOnlyList<string> Skills,
     IReadOnlyList<string> Documentation)
@@ -26,6 +27,7 @@ public sealed record WorkspaceMap(
         AppendGroup(builder, "Projects", ProjectFiles);
         AppendGroup(builder, "Package/config files", PackageFiles);
         AppendGroup(builder, "Likely entry points", SourceEntryPoints);
+        AppendGroup(builder, "Code symbols", CodeSymbols);
         AppendGroup(builder, "Scripts", Scripts);
         AppendGroup(builder, "Skills", Skills);
         AppendGroup(builder, "Documentation", Documentation);
