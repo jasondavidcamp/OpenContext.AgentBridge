@@ -82,6 +82,46 @@ public sealed class SimulatedStarkResponderTests
     }
 
     [Fact]
+    public void CreateAssistantContent_drives_symbol_aware_edit_smoke_through_validation_and_diff()
+    {
+        var responder = new SimulatedStarkResponder();
+        var messages = new List<SimulatedChatMessage>
+        {
+            new(
+                "system",
+                "Workspace map: Code symbols: examples/sandbox-project/SandboxApp/Program.cs: string Greeter.CreateGreeting(string name)"),
+            new(
+                "user",
+                "Use the workspace map to find the C# greeting implementation. Modify it so the generated greeting includes the phrase 'from AgentBridge'.")
+        };
+
+        var read = AppendAssistant(responder, messages);
+        Assert.Equal("read_file", read.ToolName);
+        Assert.Equal("examples/sandbox-project/SandboxApp/Program.cs", GetString(read, "path"));
+        messages.Add(ToolResultMessage(read));
+
+        var replace = AppendAssistant(responder, messages);
+        Assert.Equal("replace_text", replace.ToolName);
+        Assert.Equal("examples/sandbox-project/SandboxApp/Program.cs", GetString(replace, "path"));
+        Assert.Contains("from AgentBridge", GetString(replace, "new_text"));
+        messages.Add(ToolResultMessage(replace));
+
+        var validate = AppendAssistant(responder, messages);
+        Assert.Equal("run_command", validate.ToolName);
+        Assert.Contains("dotnet run --project", GetString(validate, "command"));
+        messages.Add(ToolResultMessage(validate));
+
+        var diff = AppendAssistant(responder, messages);
+        Assert.Equal("git_diff", diff.ToolName);
+        Assert.Equal("examples/sandbox-project/SandboxApp/Program.cs", GetString(diff, "path"));
+        messages.Add(ToolResultMessage(diff));
+
+        var final = AppendAssistant(responder, messages);
+        Assert.Equal("final", final.Type);
+        Assert.Contains("workspace map", final.Message);
+    }
+
+    [Fact]
     public void CreateChatCompletion_returns_openai_compatible_shape()
     {
         var responder = new SimulatedStarkResponder();

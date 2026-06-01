@@ -56,7 +56,7 @@ Run the STARK smoke script:
 .\scripts\Invoke-StarkSmoke.ps1 -Endpoint "https://stark.example.mil/v1" -Model "gemini-2.5-flash"
 ```
 
-The script prompts for the API key without displaying it. By default it builds the repo, lists models, tests one model, validates the included PowerShell sandbox, runs a no-edit agent inspection, runs a small edit/validate/diff loop against `examples/powershell-sandbox`, then resets the sample file. It also sets a 300-second model timeout for slow STARK responses. Use `-ConnectivityOnly` to stop after the model and sandbox checks, or `-KeepChanges` to leave the sample edit in place.
+The script prompts for the API key without displaying it. By default it builds the repo, lists models, tests one model, validates the included PowerShell and .NET sandboxes, runs a no-edit agent inspection, runs a small edit/validate/diff loop against `examples/powershell-sandbox`, runs a symbol-aware C# edit/validate/diff loop against `examples/sandbox-project`, then resets the sample files. It also sets a 300-second model timeout for slow STARK responses. Use `-ConnectivityOnly` to stop after the model and sandbox checks, or `-KeepChanges` to leave the sample edits in place.
 
 List available model IDs:
 

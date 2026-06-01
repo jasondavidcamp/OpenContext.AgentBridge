@@ -6,6 +6,7 @@ AgentBridge includes a local OpenAI-compatible simulator so most agent-loop work
 - `POST /v1/chat/completions`
 
 It intentionally returns deterministic tool-call sequences. This makes it useful for regression testing AgentBridge behavior such as model request formatting, action parsing, required tool use, file reads, text replacement, command validation, diffs, and final-answer handling.
+The full smoke run also includes a symbol-aware C# edit where the simulator finds `Greeter.CreateGreeting` from the workspace map instead of being handed the file path in the user prompt.
 
 ## One-Command Smoke Run
 

@@ -123,12 +123,14 @@ function Assert-NonEmptyDiff {
 }
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
-$samplePath = "examples/powershell-sandbox/Get-Greeting.ps1"
+$powerShellSamplePath = "examples/powershell-sandbox/Get-Greeting.ps1"
+$dotNetSamplePath = "examples/sandbox-project/SandboxApp/Program.cs"
 $completed = $false
 
 Push-Location $repoRoot
 try {
-    Reset-SmokeState -Path $samplePath -RemoveLocalState:(-not $KeepLocalState) -Reason "preflight"
+    Reset-SmokeState -Path $powerShellSamplePath -RemoveLocalState:(-not $KeepLocalState) -Reason "preflight"
+    Reset-SmokeState -Path $dotNetSamplePath -Reason "preflight"
 
     if ([string]::IsNullOrWhiteSpace($Endpoint)) {
         $Endpoint = Read-Host "STARK endpoint ending in /v1"
@@ -198,7 +200,10 @@ try {
     )
 
     Write-Section "PowerShell Sandbox Baseline"
-    Invoke-NativeCommand $shell.FilePath ($shell.Prefix + @("-File", ".\$samplePath", "-Name", "AgentBridge"))
+    Invoke-NativeCommand $shell.FilePath ($shell.Prefix + @("-File", ".\$powerShellSamplePath", "-Name", "AgentBridge"))
+
+    Write-Section ".NET Sandbox Baseline"
+    Invoke-NativeCommand "dotnet" @("run", "--project", ".\examples\sandbox-project\SandboxApp", "--", "AgentBridge")
 
     if (-not $ConnectivityOnly) {
         Write-Section "No-Edit Agent Smoke"
@@ -221,7 +226,7 @@ try {
 
         Write-Section "Status After No-Edit Smoke"
         Invoke-NativeCommand "git" @("status", "--short")
-        Assert-CleanSample -Path $samplePath
+        Assert-CleanSample -Path $powerShellSamplePath
 
         Write-Section "Edit Agent Smoke"
         Invoke-NativeCommand "dotnet" @(
@@ -242,14 +247,40 @@ try {
         )
 
         Write-Section "Final Validation"
-        Invoke-NativeCommand $shell.FilePath ($shell.Prefix + @("-File", ".\$samplePath", "-Name", "AgentBridge"))
-        Assert-NonEmptyDiff -Path $samplePath
+        Invoke-NativeCommand $shell.FilePath ($shell.Prefix + @("-File", ".\$powerShellSamplePath", "-Name", "AgentBridge"))
+        Assert-NonEmptyDiff -Path $powerShellSamplePath
 
         Write-Section "Final Status"
         Invoke-NativeCommand "git" @("status", "--short")
 
-        Write-Section "Final Diff"
-        Invoke-NativeCommand "git" @("diff", "--", $samplePath)
+        Write-Section "PowerShell Final Diff"
+        Invoke-NativeCommand "git" @("diff", "--", $powerShellSamplePath)
+
+        Write-Section "Symbol-Aware Agent Smoke"
+        Invoke-NativeCommand "dotnet" @(
+            "run",
+            "--project",
+            ".\src\OpenContext.AgentBridge.Cli",
+            "--",
+            "ask",
+            ".",
+            "--new",
+            "--require-tool-calls",
+            "4",
+            "--max-iterations",
+            "$EditMaxIterations",
+            "Use the workspace map to find the C# greeting implementation in the sandbox project. Do not ask for or assume a path from the user. Modify it so the generated greeting includes the phrase 'from AgentBridge' while preserving the supplied name. Validate by running: dotnet run --project .\examples\sandbox-project\SandboxApp -- AgentBridge. Then show the git diff and return a final summary in no more than three plain sentences."
+        )
+
+        Write-Section ".NET Final Validation"
+        Invoke-NativeCommand "dotnet" @("run", "--project", ".\examples\sandbox-project\SandboxApp", "--", "AgentBridge")
+        Assert-NonEmptyDiff -Path $dotNetSamplePath
+
+        Write-Section ".NET Final Status"
+        Invoke-NativeCommand "git" @("status", "--short")
+
+        Write-Section ".NET Final Diff"
+        Invoke-NativeCommand "git" @("diff", "--", $dotNetSamplePath)
     }
 
     $completed = $true
@@ -258,7 +289,8 @@ finally {
     if ($completed) {
         if (-not $KeepChanges) {
             Write-Host ""
-            Reset-SmokeState -Path $samplePath -Reason "completion"
+            Reset-SmokeState -Path $powerShellSamplePath -Reason "completion"
+            Reset-SmokeState -Path $dotNetSamplePath -Reason "completion"
         }
 
         if (-not $KeepLocalState -and (Test-Path ".\.agentbridge")) {

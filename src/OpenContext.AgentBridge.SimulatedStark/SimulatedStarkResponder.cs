@@ -8,6 +8,7 @@ public sealed class SimulatedStarkResponder
     private const string ModelId = "simulated-gemini-flash";
     private const string SandboxReadmePath = "examples/powershell-sandbox/README.md";
     private const string SandboxScriptPath = "examples/powershell-sandbox/Get-Greeting.ps1";
+    private const string SandboxDotNetProgramPath = "examples/sandbox-project/SandboxApp/Program.cs";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -45,6 +46,11 @@ public sealed class SimulatedStarkResponder
         if (Contains(transcript, "Improve the PowerShell script help text"))
         {
             return CreateEditSmokeResponse(messages);
+        }
+
+        if (Contains(transcript, "Use the workspace map to find the C# greeting implementation"))
+        {
+            return CreateSymbolAwareEditSmokeResponse(messages);
         }
 
         if (Contains(transcript, "Only inspect examples/powershell-sandbox"))
@@ -130,6 +136,48 @@ public sealed class SimulatedStarkResponder
         }
 
         return Final("Updated the script help text, validated the greeting command, and reviewed the resulting diff.");
+    }
+
+    private static string CreateSymbolAwareEditSmokeResponse(IReadOnlyList<SimulatedChatMessage> messages)
+    {
+        if (!HasAssistantTool(messages, "read_file", SandboxDotNetProgramPath))
+        {
+            return Tool("read_file", new Dictionary<string, object?>
+            {
+                ["path"] = SandboxDotNetProgramPath
+            });
+        }
+
+        if (!HasAssistantTool(messages, "replace_text", SandboxDotNetProgramPath))
+        {
+            return Tool("replace_text", new Dictionary<string, object?>
+            {
+                ["path"] = SandboxDotNetProgramPath,
+                ["old_text"] = "return $\"Hello, {name}!\";",
+                ["new_text"] = "return $\"Hello, {name} from AgentBridge!\";",
+                ["replace_all"] = false,
+                ["expected_replacements"] = 1
+            });
+        }
+
+        if (!HasAssistantTool(messages, "run_command", "SandboxApp"))
+        {
+            return Tool("run_command", new Dictionary<string, object?>
+            {
+                ["command"] = @"dotnet run --project .\examples\sandbox-project\SandboxApp -- AgentBridge",
+                ["timeout_minutes"] = 5
+            });
+        }
+
+        if (!HasAssistantTool(messages, "git_diff", SandboxDotNetProgramPath))
+        {
+            return Tool("git_diff", new Dictionary<string, object?>
+            {
+                ["path"] = SandboxDotNetProgramPath
+            });
+        }
+
+        return Final("Found the C# greeting implementation from the workspace map, updated it, validated the app, and reviewed the diff.");
     }
 
     private static bool HasAssistantTool(
