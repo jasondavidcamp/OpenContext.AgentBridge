@@ -42,6 +42,14 @@ $env:AGENTBRIDGE_STARK_API_KEY_PREFIX = ""
 
 ## Diagnostics
 
+Run the STARK smoke script:
+
+```powershell
+.\scripts\Invoke-StarkSmoke.ps1 -Endpoint "https://stark.example.mil/v1" -Model "gemini-2.5-flash"
+```
+
+The script prompts for the API key without displaying it. By default it builds the repo, lists models, tests one model, validates the included PowerShell sandbox, runs a no-edit agent inspection, runs a small edit/validate/diff loop against `examples/powershell-sandbox`, then resets the sample file. Use `-ConnectivityOnly` to stop after the model and sandbox checks, or `-KeepChanges` to leave the sample edit in place.
+
 List available model IDs:
 
 ```powershell

@@ -68,6 +68,7 @@ dotnet run --project src/OpenContext.AgentBridge.Cli -- models test .
 - `OpenContext.AgentBridge.Providers.OpenAiCompatible`: OpenAI-compatible chat completions adapter for STARK-style gateways
 - `OpenContext.AgentBridge.Storage`: SQLite conversation persistence
 - `docker/`: optional tool container assets
+- `scripts/`: repeatable smoke tests for constrained environments
 - `skills/`: repo-level starter documentation for skills
 - `examples/`: safe sandbox fixtures for public-endpoint dogfooding
 
@@ -105,6 +106,14 @@ $env:AGENTBRIDGE_STARK_ENDPOINT = "https://stark.example.mil/v1"
 $env:AGENTBRIDGE_STARK_MODEL = "<model-id-from-v1-models>"
 $env:AGENTBRIDGE_STARK_API_KEY = "<key>"
 ```
+
+For a one-command STARK smoke test, run:
+
+```powershell
+.\scripts\Invoke-StarkSmoke.ps1 -Endpoint "https://stark.example.mil/v1"
+```
+
+The script prompts for the API key without echoing it, builds the repo, lists/tests STARK models, runs a no-edit agent inspection, runs a tiny PowerShell edit/validate/diff loop, and then resets the sample file.
 
 Gemini can also be tested through Google's OpenAI-compatible endpoint:
 

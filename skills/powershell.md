@@ -5,7 +5,7 @@ Use this skill when working on PowerShell scripts, modules, build scripts, autom
 ## Operating Principles
 
 - Treat PowerShell changes as automation changes: inspect first, edit narrowly, and validate with commands that exercise the changed path.
-- Prefer `apply_patch` for small edits. Use `write_file` only for new files or when replacing a tiny fixture is clearer than patching.
+- Prefer `replace_text` for small exact substitutions after reading the file. Use `apply_patch` for broader multi-line edits. Use `write_file` only for new files or when replacing a tiny fixture is clearer than patching.
 - Keep scripts readable for infrastructure engineers who may need to troubleshoot them under pressure.
 - Preserve existing parameter names, pipeline behavior, output shape, and exit-code behavior unless the user explicitly asks to change them.
 - Do not introduce network calls, credential prompts, destructive filesystem operations, service changes, registry edits, or remote execution unless the user specifically asked for that behavior.
