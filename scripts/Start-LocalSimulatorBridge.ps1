@@ -158,6 +158,7 @@ try {
     Write-Output "  Invoke-RestMethod -Uri `"$agentBridgeBase/v1/chat/completions`" -Method Post -ContentType `"application/json`" -Body (@{ model = `"agentbridge-agent`"; messages = @(@{ role = `"user`"; content = `"Inspect only README.md. Do not edit files. Return one sentence.`" }); stream = `$false } | ConvertTo-Json -Depth 10)"
     Write-Output ""
     Write-Output "Stop commands:"
+    Write-Output "  .\scripts\Stop-LocalSimulatorBridge.ps1"
     Write-Output "  Stop-Process -Id $($server.Id) -Force"
     Write-Output "  Stop-Process -Id $($simulator.Id) -Force"
 }
