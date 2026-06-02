@@ -11,6 +11,14 @@ This keeps AgentBridge client-agnostic. Open WebUI, LangGraph, Aider, scripts, o
 
 Agent mode responses include an `agentbridge` metadata object with the conversation id and tool-call counts. Clients can use that conversation id to fetch tool activity from `/v1/agentbridge/conversations/{conversation_id}`.
 
+For bridge-side conversation continuation, send the returned conversation id back on the next agent request:
+
+```text
+X-AgentBridge-Conversation: <conversation_id>
+```
+
+When this header is present, AgentBridge appends the new request messages to that existing persisted conversation. Clients that already manage their own chat history can ignore the header and keep sending normal OpenAI-compatible requests.
+
 ## Configuration
 
 Set the workspace that the agent is allowed to use:
@@ -138,6 +146,23 @@ $conversationId = $response.Headers["X-AgentBridge-Conversation"]
 Invoke-RestMethod -Uri "http://127.0.0.1:5320/v1/agentbridge/conversations/$conversationId"
 ```
 
+Continue that persisted AgentBridge conversation:
+
+```powershell
+Invoke-RestMethod `
+  -Uri "http://127.0.0.1:5320/v1/chat/completions" `
+  -Method Post `
+  -ContentType "application/json" `
+  -Headers @{ "X-AgentBridge-Conversation" = $conversationId } `
+  -Body (@{
+    model = "agentbridge-agent"
+    messages = @(
+      @{ role = "user"; content = "Continue from the previous bridge conversation and summarize the next thing to inspect." }
+    )
+    stream = $false
+  } | ConvertTo-Json -Depth 10)
+```
+
 Use agent mode with streaming:
 
 ```powershell
@@ -179,3 +204,4 @@ Invoke-RestMethod `
 - `agentbridge-agent` supports OpenAI-style server-sent event streaming. It currently streams the final answer in chunks after the agent run completes.
 - Raw proxy mode forwards upstream streaming responses when clients send `stream=true`.
 - Agent mode adds AgentBridge metadata to non-streaming responses and the final streaming chunk. Use `/v1/agentbridge/conversations/{conversation_id}` to inspect tool calls without changing the chat text.
+- Wrappers can continue bridge-side agent history by sending `X-AgentBridge-Conversation` on later `agentbridge-agent` requests. Raw proxy mode does not use this header.

@@ -148,7 +148,7 @@ try {
     $agentCompletion = $agentResponse.Content | ConvertFrom-Json
     $agentCompletion | ConvertTo-Json -Depth 10
 
-    $conversationId = $agentResponse.Headers["X-AgentBridge-Conversation"]
+    $conversationId = @($agentResponse.Headers["X-AgentBridge-Conversation"])[0]
     if (-not $conversationId) {
         throw "Agent mode response did not include X-AgentBridge-Conversation."
     }
@@ -163,6 +163,31 @@ try {
 
     if ($conversationDetails.agentbridge.conversation_id -ne $conversationId) {
         throw "Conversation details metadata did not match the requested conversation id."
+    }
+
+    Write-Section "Agent Conversation Continuation"
+    $continuationResponse = Invoke-WebRequest `
+        -Uri "$serverBase/v1/chat/completions" `
+        -Method Post `
+        -ContentType "application/json" `
+        -Headers @{ "X-AgentBridge-Conversation" = $conversationId } `
+        -Body (@{
+            model = "agentbridge-agent"
+            messages = @(
+                @{ role = "user"; content = "Continue the same conversation and return a concise final summary. Do not edit files." }
+            )
+            stream = $false
+        } | ConvertTo-Json -Depth 10)
+    $continuationCompletion = $continuationResponse.Content | ConvertFrom-Json
+    $continuationCompletion | ConvertTo-Json -Depth 10
+
+    $continuedConversationId = @($continuationResponse.Headers["X-AgentBridge-Conversation"])[0]
+    if ($continuedConversationId -ne $conversationId) {
+        throw "Continuation response did not keep the requested conversation id."
+    }
+
+    if ($continuationCompletion.agentbridge.conversation_id -ne $conversationId) {
+        throw "Continuation metadata did not keep the requested conversation id."
     }
 
     Write-Section "Agent Mode Streaming"

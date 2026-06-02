@@ -83,7 +83,21 @@ app.MapPost("/v1/chat/completions", async Task (HttpContext context, IHttpClient
         return;
     }
 
-    var response = await RunAgentAsync(chatRequest, httpClientFactory.CreateClient(), cancellationToken);
+    AgentCompletionResult response;
+    try
+    {
+        response = await RunAgentAsync(
+            chatRequest,
+            httpClientFactory.CreateClient(),
+            ReadOptionalHeader(context, "X-AgentBridge-Conversation"),
+            cancellationToken);
+    }
+    catch (AgentBridgeRequestException ex)
+    {
+        await WriteErrorAsync(context, ex.StatusCode, ex.Message, cancellationToken);
+        return;
+    }
+
     context.Response.Headers["X-AgentBridge-Conversation"] = response.ConversationId;
     context.Response.Headers["X-AgentBridge-Tool-Calls"] = response.ToolCallCount.ToString();
     if (chatRequest.Stream is true)
@@ -132,6 +146,7 @@ app.Run();
 static async Task<AgentCompletionResult> RunAgentAsync(
     ChatCompletionRequest request,
     HttpClient httpClient,
+    string? requestedConversationId,
     CancellationToken cancellationToken)
 {
     var workspace = ResolveWorkspace();
@@ -141,7 +156,11 @@ static async Task<AgentCompletionResult> RunAgentAsync(
     var store = new SqliteConversationStore(workspace.ConversationDatabasePath);
     await store.InitializeAsync(cancellationToken);
 
-    var conversationId = await store.CreateConversationAsync(workspace.RootPath, cancellationToken);
+    var conversationId = await ResolveConversationIdAsync(
+        store,
+        workspace,
+        requestedConversationId,
+        cancellationToken);
     foreach (var message in request.Messages)
     {
         await store.AppendMessageAsync(
@@ -168,6 +187,34 @@ static async Task<AgentCompletionResult> RunAgentAsync(
         ChatCompletionResponse.Create(AgentModelId, result.FinalMessage, metadata),
         conversationId,
         result.ToolCalls.Count);
+}
+
+static async Task<string> ResolveConversationIdAsync(
+    IConversationStore store,
+    WorkspaceContext workspace,
+    string? requestedConversationId,
+    CancellationToken cancellationToken)
+{
+    if (string.IsNullOrWhiteSpace(requestedConversationId))
+    {
+        return await store.CreateConversationAsync(workspace.RootPath, cancellationToken);
+    }
+
+    var normalizedConversationId = requestedConversationId.Trim();
+    var conversation = (await store.ListConversationsAsync(workspace.RootPath, cancellationToken))
+        .FirstOrDefault(candidate => string.Equals(
+            candidate.Id,
+            normalizedConversationId,
+            StringComparison.OrdinalIgnoreCase));
+
+    if (conversation is null)
+    {
+        throw new AgentBridgeRequestException(
+            StatusCodes.Status404NotFound,
+            $"Conversation not found: {normalizedConversationId}");
+    }
+
+    return conversation.Id;
 }
 
 static async Task ProxyRawChatCompletionAsync(
@@ -339,6 +386,19 @@ static bool AuthorizeLocalRequest(HttpContext context)
 
     var expected = $"Bearer {expectedApiKey.Trim()}";
     return authorization.Any(value => string.Equals(value, expected, StringComparison.Ordinal));
+}
+
+static string? ReadOptionalHeader(HttpContext context, string headerName)
+{
+    if (!context.Request.Headers.TryGetValue(headerName, out var values))
+    {
+        return null;
+    }
+
+    var value = values.FirstOrDefault();
+    return string.IsNullOrWhiteSpace(value)
+        ? null
+        : value.Trim();
 }
 
 static WorkspaceContext ResolveWorkspace()
@@ -570,6 +630,17 @@ internal sealed record AgentCompletionResult(
     ChatCompletionResponse Completion,
     string ConversationId,
     int ToolCallCount);
+
+internal sealed class AgentBridgeRequestException : Exception
+{
+    public AgentBridgeRequestException(int statusCode, string message)
+        : base(message)
+    {
+        StatusCode = statusCode;
+    }
+
+    public int StatusCode { get; }
+}
 
 internal sealed record ChatCompletionRequest(
     [property: JsonPropertyName("model")] string Model,
