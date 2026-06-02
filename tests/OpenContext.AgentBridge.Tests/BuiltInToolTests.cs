@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json.Nodes;
 using OpenContext.AgentBridge.Core.Execution;
 using OpenContext.AgentBridge.Core.Tools;
@@ -8,6 +9,38 @@ namespace OpenContext.AgentBridge.Tests;
 
 public sealed class BuiltInToolTests
 {
+    [Fact]
+    public async Task GitStatusTool_excludes_agentbridge_local_state()
+    {
+        var root = CreateTempDirectory();
+
+        try
+        {
+            RunGit(root, "init");
+            await File.WriteAllTextAsync(Path.Combine(root, "README.md"), "# Sample");
+            Directory.CreateDirectory(Path.Combine(root, ".agentbridge"));
+            await File.WriteAllTextAsync(Path.Combine(root, ".agentbridge", "agentbridge.db"), "local state");
+
+            var workspace = WorkspaceContext.FromPath(root);
+            var context = new ToolExecutionContext(workspace, new HostWorkspaceExecutor());
+            var directive = new AgentDirective(
+                "tool",
+                "git_status",
+                new JsonObject(),
+                null);
+
+            var result = await new GitStatusTool().ExecuteAsync(context, directive);
+
+            Assert.True(result.IsSuccess, result.Content);
+            Assert.Contains("README.md", result.Content);
+            Assert.DoesNotContain(".agentbridge", result.Content, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     [Fact]
     public async Task ApplyPatchTool_applies_unified_diff_inside_workspace()
     {
@@ -446,5 +479,27 @@ public sealed class BuiltInToolTests
         var path = Path.Combine(Path.GetTempPath(), $"agentbridge-tests-{Guid.NewGuid():N}");
         Directory.CreateDirectory(path);
         return path;
+    }
+
+    private static void RunGit(string workingDirectory, params string[] arguments)
+    {
+        using var process = new Process();
+        process.StartInfo = new ProcessStartInfo
+        {
+            FileName = "git",
+            WorkingDirectory = workingDirectory,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false
+        };
+
+        foreach (var argument in arguments)
+        {
+            process.StartInfo.ArgumentList.Add(argument);
+        }
+
+        process.Start();
+        process.WaitForExit();
+        Assert.Equal(0, process.ExitCode);
     }
 }

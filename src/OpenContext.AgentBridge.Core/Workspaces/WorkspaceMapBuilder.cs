@@ -211,6 +211,9 @@ public static class WorkspaceMapBuilder
             };
             process.StartInfo.ArgumentList.Add("status");
             process.StartInfo.ArgumentList.Add("--short");
+            process.StartInfo.ArgumentList.Add("--");
+            process.StartInfo.ArgumentList.Add(".");
+            process.StartInfo.ArgumentList.Add(":(exclude).agentbridge");
             process.Start();
 
             if (!process.WaitForExit(2_000))

@@ -46,6 +46,8 @@ public static class AgentSystemPromptBuilder
             Keep all paths relative to the workspace unless a tool says otherwise.
             Use tools to inspect files before modifying them. If the user asked you not to edit files, do not call editing tools.
             For one-line or small exact substitutions, use replace_text after reading the file. Do not use apply_patch for simple exact substitutions. Use apply_patch for multi-line targeted edits. Use write_file only when creating or replacing a whole file is the clearest option.
+            When adding text before or after an exact existing line, prefer replace_text with old_text set to that exact anchor and new_text containing the added text plus the anchor.
+            If apply_patch fails for a file, re-read the file and switch to replace_text or write_file for the retry instead of repeating similar patch attempts.
             If the user asks you to edit a file, you must inspect the target file in the current conversation before editing it.
             If the user asks you to run validation, tests, or commands, use run_command before returning a final answer.
             If the user asks for a diff or status, use git_diff, git_status, or run_command before returning a final answer.

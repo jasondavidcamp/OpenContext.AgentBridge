@@ -49,5 +49,7 @@ public sealed class AgentSystemPromptBuilderTests
         Assert.Contains("Code symbols: src/Sample/Program.cs: class Program", prompt);
         Assert.Contains("# Skill: PowerShell", prompt);
         Assert.Contains("- read_file: Read a file.", prompt);
+        Assert.Contains("When adding text before or after an exact existing line", prompt);
+        Assert.Contains("If apply_patch fails for a file", prompt);
     }
 }

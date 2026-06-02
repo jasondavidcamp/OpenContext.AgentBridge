@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using OpenContext.AgentBridge.Core.Workspaces;
 
 namespace OpenContext.AgentBridge.Tests;
@@ -71,6 +72,28 @@ public sealed class WorkspaceMapBuilderTests
     }
 
     [Fact]
+    public async Task Build_excludes_agentbridge_local_state_from_git_status()
+    {
+        var root = CreateTempDirectory();
+
+        try
+        {
+            RunGit(root, "init");
+            await WriteAsync(root, "README.md", "# Sample");
+            await WriteAsync(root, ".agentbridge/agentbridge.db", "local state");
+
+            var map = WorkspaceMapBuilder.Build(WorkspaceContext.FromPath(root));
+
+            Assert.Contains("README.md", map.GitStatus);
+            Assert.DoesNotContain(".agentbridge", map.GitStatus, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task ToPromptText_formats_compact_workspace_orientation()
     {
         var root = CreateTempDirectory();
@@ -107,5 +130,27 @@ public sealed class WorkspaceMapBuilderTests
         var path = Path.Combine(root, relativePath.Replace('/', Path.DirectorySeparatorChar));
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         await File.WriteAllTextAsync(path, content);
+    }
+
+    private static void RunGit(string workingDirectory, params string[] arguments)
+    {
+        using var process = new Process();
+        process.StartInfo = new ProcessStartInfo
+        {
+            FileName = "git",
+            WorkingDirectory = workingDirectory,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false
+        };
+
+        foreach (var argument in arguments)
+        {
+            process.StartInfo.ArgumentList.Add(argument);
+        }
+
+        process.Start();
+        process.WaitForExit();
+        Assert.Equal(0, process.ExitCode);
     }
 }

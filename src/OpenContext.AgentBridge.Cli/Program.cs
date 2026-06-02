@@ -776,7 +776,10 @@ internal static class ProgramMain
         var toolChangedFiles = ToolChangedFileExtractor.Extract(result.ToolCalls);
         var gitStatus = await executor.RunAsync(
             workspace,
-            CommandRequest.Create("git", new[] { "status", "--short", "--", "." }, TimeSpan.FromSeconds(30)));
+            CommandRequest.Create(
+                "git",
+                new[] { "status", "--short", "--", ".", ":(exclude).agentbridge" },
+                TimeSpan.FromSeconds(30)));
         if (gitStatus.ExitCode == 0 && !string.IsNullOrWhiteSpace(gitStatus.StandardOutput))
         {
             Console.WriteLine("Changed files:");
