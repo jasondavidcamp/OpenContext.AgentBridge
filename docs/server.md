@@ -83,6 +83,14 @@ admin@localhost / admin
 
 Use `-Recreate` to delete the previous Open WebUI container and volume before starting, or `-UseExistingProviderConfig` when you already configured AgentBridge provider environment variables for a constrained gateway.
 
+To run an end-to-end Open WebUI compatibility smoke:
+
+```powershell
+.\scripts\Invoke-OpenWebUiSmoke.ps1
+```
+
+The smoke can start the bridge setup, sign into the disposable local Open WebUI session, send one small streaming `agentbridge-agent` request, validate AgentBridge metadata, and fetch the tool-call details endpoint. Use `-SkipStart` when Open WebUI and AgentBridge Server are already running.
+
 List models:
 
 ```powershell
