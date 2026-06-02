@@ -3,6 +3,7 @@ param(
     [int]$AgentBridgePort = 5330,
     [int]$OpenWebUiPort = 3100,
     [int]$SimulatorPort = 5331,
+    [switch]$SkipEditCanary,
     [switch]$SkipOpenWebUi,
     [switch]$SkipFormat,
     [switch]$KeepServices
@@ -110,6 +111,11 @@ try {
 
     Write-Section "Local Server Smoke"
     & (Join-Path $PSScriptRoot "Invoke-LocalServerSmoke.ps1") -SkipBuild
+
+    if (-not $SkipEditCanary) {
+        Write-Section "Local Server Edit Canary"
+        & (Join-Path $PSScriptRoot "Invoke-LocalServerEditCanary.ps1") -SkipBuild
+    }
 
     if (-not $SkipOpenWebUi) {
         Write-Section "Open WebUI Simulator Smoke"

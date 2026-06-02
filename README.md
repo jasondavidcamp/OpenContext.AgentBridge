@@ -66,6 +66,13 @@ Run the cheap pre-push regression set:
 ```
 
 Use `-SkipOpenWebUi` when Docker is unavailable. The default path uses the local simulator for the Open WebUI smoke, so it does not spend live model calls.
+Use `-SkipEditCanary` only when the machine cannot run the PowerShell fixture validation.
+
+Run a focused local server edit canary:
+
+```powershell
+.\scripts\Invoke-LocalServerEditCanary.ps1
+```
 
 For slower workstation handoff testing, use the [constrained environment test packet](docs/constrained-environment-test-packet.md).
 

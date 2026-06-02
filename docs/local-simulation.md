@@ -44,6 +44,18 @@ Use `-OutputDirectory` and `-ZipDiagnostics` to test the diagnostics bundle loca
 
 Simulator logs are written under `.agentbridge/simulator-logs/`.
 
+## Local Server Edit Canary
+
+To test the local OpenAI-compatible server path with an actual edit loop, run:
+
+```powershell
+.\scripts\Invoke-LocalServerEditCanary.ps1
+```
+
+The script creates a scratch git workspace under `.agentbridge`, copies only the safe PowerShell fixture, starts the local simulator and AgentBridge Server, asks `agentbridge-agent` to improve the fixture help text, verifies the saved tool-call details include `read_file`, `replace_text`, `run_command`, and `git_diff`, validates the script output is unchanged, and removes the scratch workspace unless `-KeepWorkspace` is set.
+
+The cheap regression runs this canary by default. Use `.\scripts\Invoke-CheapRegression.ps1 -SkipEditCanary` only when the machine cannot run the PowerShell fixture validation.
+
 ## Manual Simulator Run
 
 To run the simulator by hand:
