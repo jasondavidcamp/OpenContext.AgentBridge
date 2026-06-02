@@ -12,3 +12,8 @@ obj/
 
 # Aider local state
 .aider*
+
+# Container tool state
+.dotnet/
+.local/
+.nuget/

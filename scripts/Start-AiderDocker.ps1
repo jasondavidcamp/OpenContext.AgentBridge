@@ -128,6 +128,11 @@ try {
     $dockerArgs += @(
         "-e", "AIDER_OPENAI_API_KEY",
         "-e", "AIDER_OPENAI_API_BASE",
+        "-e", "DOTNET_CLI_HOME=/tmp/agentbridge-dotnet",
+        "-e", "DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1",
+        "-e", "HOME=/tmp/agentbridge-home",
+        "-e", "NUGET_PACKAGES=/tmp/agentbridge-nuget/packages",
+        "-e", "XDG_DATA_HOME=/tmp/agentbridge-xdg",
         "-v", "$($resolvedWorkspace.Path):/app",
         "-w", "/app",
         $Image

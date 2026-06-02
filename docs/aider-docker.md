@@ -34,6 +34,14 @@ The first edit test on June 2, 2026:
 
 The sandbox file was restored after the test so the fixture remains reusable.
 
+Validation command check:
+
+- the official `paulgauthier/aider` image does not include `dotnet`
+- it can edit the public sandbox but cannot run the .NET validation command internally
+- `docker/aider-dotnet.Dockerfile` provides a tested path for Aider plus the .NET 10 SDK
+- the Aider plus .NET image ran the same edit and executed `dotnet run --project examples/sandbox-project/SandboxApp -- AgentBridge` inside Docker successfully
+- the wrapper sets .NET, NuGet, home, and XDG paths inside the container so validation state does not get written into the mounted repository
+
 ## Launcher
 
 Use the wrapper script instead of typing a long `docker run` command:
@@ -104,6 +112,37 @@ Then validate from the host:
 
 ```powershell
 dotnet run --project examples\sandbox-project\SandboxApp -- AgentBridge
+```
+
+## Aider Plus .NET Image
+
+Build the local image when Aider needs to run .NET validation commands inside Docker:
+
+```powershell
+docker build -f docker\aider-dotnet.Dockerfile -t opencontext-agentbridge-aider-dotnet:latest .
+```
+
+Verify the image:
+
+```powershell
+.\scripts\Start-AiderDocker.ps1 -Image opencontext-agentbridge-aider-dotnet:latest -ShowVersion
+```
+
+The image keeps the same Aider entrypoint as the official image, but adds the .NET 10 SDK and common command-line tools. Use it with the wrapper's `-Image` parameter:
+
+```powershell
+.\scripts\Start-AiderDocker.ps1 `
+  -Image opencontext-agentbridge-aider-dotnet:latest `
+  -Workspace . `
+  -Model gemini-2.5-flash `
+  -OpenAiApiBase "https://generativelanguage.googleapis.com/v1beta/openai/" `
+  -NoTty `
+  -File @("examples/sandbox-project/SandboxApp/Program.cs") `
+  -Read @("examples/sandbox-project/README.md") `
+  -TestCommand "dotnet run --project examples/sandbox-project/SandboxApp -- AgentBridge" `
+  -AutoTest `
+  -Message "Modify examples/sandbox-project/SandboxApp/Program.cs so Greeter.CreateGreeting includes the phrase 'from AgentBridge' while preserving the supplied name. Do not edit any other files." `
+  -- --map-tokens 0 --no-stream --no-pretty --yes-always
 ```
 
 ## Boundary Decision
