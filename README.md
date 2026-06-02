@@ -45,6 +45,14 @@ dotnet build OpenContext.AgentBridge.sln
 dotnet test OpenContext.AgentBridge.sln
 ```
 
+Start a no-key local simulator bridge:
+
+```powershell
+.\scripts\Start-LocalSimulatorBridge.ps1
+```
+
+This starts the local simulator and AgentBridge Server, then prints the local OpenAI-compatible URL and a copyable chat request. It is the fastest fresh-clone path because it does not need Docker or an API key.
+
 Run the cheap pre-push regression set:
 
 ```powershell
