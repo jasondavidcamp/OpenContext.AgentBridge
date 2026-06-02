@@ -41,7 +41,23 @@ $env:AGENTBRIDGE_GEMINI_API_KEY = [Environment]::GetEnvironmentVariable("AGENTBR
   -Model gemini-2.5-flash `
   -OpenAiApiBase "https://generativelanguage.googleapis.com/v1beta/openai/" `
   -DryRun `
+  -NoTty `
+  -Read @("examples/sandbox-project/README.md", "examples/sandbox-project/SandboxApp/Program.cs") `
   -Message "Inspect examples/sandbox-project/README.md and examples/sandbox-project/SandboxApp/Program.cs. Do not edit files. Say whether this is enough context for a greeting-change test."
+```
+
+To pass extra Aider flags, place them after `--`. This is useful for low-quota smoke tests:
+
+```powershell
+.\scripts\Start-AiderDocker.ps1 `
+  -Workspace . `
+  -Model gemini-2.5-flash `
+  -OpenAiApiBase "https://generativelanguage.googleapis.com/v1beta/openai/" `
+  -DryRun `
+  -NoTty `
+  -Read @("examples/sandbox-project/README.md", "examples/sandbox-project/SandboxApp/Program.cs") `
+  -Message "Do not edit files. Say whether this sandbox is suitable for testing a greeting text change." `
+  -- --map-tokens 0 --no-stream --no-pretty
 ```
 
 For a constrained OpenAI-compatible gateway that accepts bearer API keys:

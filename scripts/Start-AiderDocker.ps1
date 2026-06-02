@@ -1,3 +1,4 @@
+[CmdletBinding(PositionalBinding = $false)]
 param(
     [string]$Workspace = (Get-Location).Path,
     [string]$Image = "paulgauthier/aider",
