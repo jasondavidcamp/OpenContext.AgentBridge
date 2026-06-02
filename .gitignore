@@ -9,3 +9,6 @@ obj/
 
 # AgentBridge local state
 .agentbridge/
+
+# Aider local state
+.aider*
