@@ -67,6 +67,20 @@ For a live Gemini regression through Gemini's OpenAI-compatible endpoint:
 
 The Gemini smoke keeps prompts small, disables AgentBridge traffic logging, and supports `-SkipRawProxy` or `-SkipAgentMode` when you only want to test one path.
 
+To start Open WebUI against AgentBridge Server:
+
+```powershell
+.\scripts\Start-OpenWebUiAgentBridge.ps1
+```
+
+The script starts AgentBridge Server, runs Open WebUI in Docker, points Open WebUI at `http://host.docker.internal:<port>/v1`, and defaults the visible model to `agentbridge-agent`. In no-auth mode Open WebUI creates a disposable local admin session with:
+
+```text
+admin@localhost / admin
+```
+
+Use `-Recreate` to delete the previous Open WebUI container and volume before starting, or `-UseExistingProviderConfig` when you already configured AgentBridge provider environment variables for a constrained gateway.
+
 List models:
 
 ```powershell
