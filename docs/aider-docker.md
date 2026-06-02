@@ -22,6 +22,18 @@ The first dry-run test on June 1, 2026:
 
 That means the immediate risk is not API shape. The immediate risks are quota, model quality, gateway auth details, and whether the restricted workstation can pull or receive a trusted Aider image.
 
+The first edit test on June 2, 2026:
+
+- used free Gemini `gemini-2.5-flash`
+- disabled the repo map with `--map-tokens 0`
+- made only `examples/sandbox-project/SandboxApp/Program.cs` editable
+- kept `examples/sandbox-project/README.md` read-only
+- changed `Greeter.CreateGreeting` from `Hello, {name}!` to `Hello, {name} from AgentBridge!`
+- used about 1.0k input tokens and 98 output tokens
+- validated on the host with `dotnet run --project examples\sandbox-project\SandboxApp -- AgentBridge`
+
+The sandbox file was restored after the test so the fixture remains reusable.
+
 ## Launcher
 
 Use the wrapper script instead of typing a long `docker run` command:
@@ -73,6 +85,26 @@ $env:AGENTBRIDGE_STARK_API_KEY = "<key>"
 ```
 
 To allow edits, omit `-DryRun`. Keep `--no-auto-commits` as the default until the workflow is trusted.
+
+Low-token public Gemini edit test:
+
+```powershell
+.\scripts\Start-AiderDocker.ps1 `
+  -Workspace . `
+  -Model gemini-2.5-flash `
+  -OpenAiApiBase "https://generativelanguage.googleapis.com/v1beta/openai/" `
+  -NoTty `
+  -File @("examples/sandbox-project/SandboxApp/Program.cs") `
+  -Read @("examples/sandbox-project/README.md") `
+  -Message "Modify examples/sandbox-project/SandboxApp/Program.cs so Greeter.CreateGreeting includes the phrase 'from AgentBridge' while preserving the supplied name. Do not edit any other files. Do not run tests." `
+  -- --map-tokens 0 --no-stream --no-pretty --yes-always
+```
+
+Then validate from the host:
+
+```powershell
+dotnet run --project examples\sandbox-project\SandboxApp -- AgentBridge
+```
 
 ## Boundary Decision
 
