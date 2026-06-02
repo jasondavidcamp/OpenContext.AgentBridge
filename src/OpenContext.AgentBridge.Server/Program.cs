@@ -83,20 +83,17 @@ app.MapPost("/v1/chat/completions", async Task (HttpContext context, IHttpClient
         return;
     }
 
-    if (chatRequest.Stream is true)
-    {
-        await WriteErrorAsync(
-            context,
-            StatusCodes.Status400BadRequest,
-            "agentbridge-agent does not support streaming yet. Use stream=false.",
-            cancellationToken);
-        return;
-    }
-
     var response = await RunAgentAsync(chatRequest, httpClientFactory.CreateClient(), cancellationToken);
     context.Response.Headers["X-AgentBridge-Conversation"] = response.ConversationId;
     context.Response.Headers["X-AgentBridge-Tool-Calls"] = response.ToolCallCount.ToString();
-    await context.Response.WriteAsJsonAsync(response.Completion, AgentBridgeServerJson.Options, cancellationToken);
+    if (chatRequest.Stream is true)
+    {
+        await WriteAgentStreamAsync(context, response.Completion, cancellationToken);
+    }
+    else
+    {
+        await context.Response.WriteAsJsonAsync(response.Completion, AgentBridgeServerJson.Options, cancellationToken);
+    }
 });
 
 app.Run();
@@ -166,16 +163,90 @@ static async Task ProxyRawChatCompletionAsync(
     };
     ApplyOpenAiCompatibleAuthentication(upstreamRequest, options);
 
+    var streamRequested = TryReadStream(body);
     using var upstreamResponse = await httpClient.SendAsync(
         upstreamRequest,
         HttpCompletionOption.ResponseHeadersRead,
         cancellationToken);
 
-    var responseBody = await upstreamResponse.Content.ReadAsByteArrayAsync(cancellationToken);
     context.Response.StatusCode = (int)upstreamResponse.StatusCode;
     context.Response.ContentType = upstreamResponse.Content.Headers.ContentType?.ToString()
-        ?? "application/json";
+        ?? (streamRequested ? "text/event-stream" : "application/json");
+    if (streamRequested)
+    {
+        await using var responseStream = await upstreamResponse.Content.ReadAsStreamAsync(cancellationToken);
+        await responseStream.CopyToAsync(context.Response.Body, cancellationToken);
+        return;
+    }
+
+    var responseBody = await upstreamResponse.Content.ReadAsByteArrayAsync(cancellationToken);
     await context.Response.Body.WriteAsync(responseBody, cancellationToken);
+}
+
+static async Task WriteAgentStreamAsync(
+    HttpContext context,
+    ChatCompletionResponse completion,
+    CancellationToken cancellationToken)
+{
+    context.Response.ContentType = "text/event-stream";
+    context.Response.Headers.CacheControl = "no-cache";
+    context.Response.Headers["X-Accel-Buffering"] = "no";
+    await context.Response.StartAsync(cancellationToken);
+
+    await WriteSseDataAsync(
+        context,
+        ChatCompletionChunk.Create(
+            completion.Id,
+            completion.Created,
+            completion.Model,
+            new ChatDelta(Role: "assistant", Content: null),
+            finishReason: null),
+        cancellationToken);
+
+    var content = completion.Choices.FirstOrDefault()?.Message.Content ?? string.Empty;
+    foreach (var chunk in SplitStreamContent(content))
+    {
+        await WriteSseDataAsync(
+            context,
+            ChatCompletionChunk.Create(
+                completion.Id,
+                completion.Created,
+                completion.Model,
+                new ChatDelta(Role: null, Content: chunk),
+                finishReason: null),
+            cancellationToken);
+    }
+
+    await WriteSseDataAsync(
+        context,
+        ChatCompletionChunk.Create(
+            completion.Id,
+            completion.Created,
+            completion.Model,
+            new ChatDelta(Role: null, Content: null),
+            finishReason: "stop"),
+        cancellationToken);
+    await context.Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
+    await context.Response.Body.FlushAsync(cancellationToken);
+}
+
+static async Task WriteSseDataAsync(
+    HttpContext context,
+    object value,
+    CancellationToken cancellationToken)
+{
+    var json = JsonSerializer.Serialize(value, AgentBridgeServerJson.Options);
+    await context.Response.WriteAsync($"data: {json}\n\n", cancellationToken);
+    await context.Response.Body.FlushAsync(cancellationToken);
+}
+
+static IEnumerable<string> SplitStreamContent(string content)
+{
+    const int chunkSize = 256;
+    for (var index = 0; index < content.Length; index += chunkSize)
+    {
+        yield return content.Substring(index, Math.Min(chunkSize, content.Length - index));
+    }
 }
 
 static bool AuthorizeLocalRequest(HttpContext context)
@@ -335,6 +406,20 @@ static bool TryReadModel(string body, out string model, out string error)
     }
 }
 
+static bool TryReadStream(string body)
+{
+    try
+    {
+        using var document = JsonDocument.Parse(body);
+        return document.RootElement.TryGetProperty("stream", out var streamElement)
+               && streamElement.ValueKind == JsonValueKind.True;
+    }
+    catch (JsonException)
+    {
+        return false;
+    }
+}
+
 static bool TryDeserialize<T>(string body, out T value, out string error)
 {
     value = default!;
@@ -447,6 +532,41 @@ internal sealed record ChatCompletionResponse(
             null);
     }
 }
+
+internal sealed record ChatCompletionChunk(
+    [property: JsonPropertyName("id")] string Id,
+    [property: JsonPropertyName("object")] string Object,
+    [property: JsonPropertyName("created")] long Created,
+    [property: JsonPropertyName("model")] string Model,
+    [property: JsonPropertyName("choices")] IReadOnlyList<ChatChunkChoice> Choices)
+{
+    public static ChatCompletionChunk Create(
+        string id,
+        long created,
+        string model,
+        ChatDelta delta,
+        string? finishReason)
+    {
+        return new ChatCompletionChunk(
+            id,
+            "chat.completion.chunk",
+            created,
+            model,
+            new[]
+            {
+                new ChatChunkChoice(0, delta, finishReason)
+            });
+    }
+}
+
+internal sealed record ChatChunkChoice(
+    [property: JsonPropertyName("index")] int Index,
+    [property: JsonPropertyName("delta")] ChatDelta Delta,
+    [property: JsonPropertyName("finish_reason")] string? FinishReason);
+
+internal sealed record ChatDelta(
+    [property: JsonPropertyName("role")] string? Role,
+    [property: JsonPropertyName("content")] string? Content);
 
 internal sealed record ChatChoice(
     [property: JsonPropertyName("index")] int Index,

@@ -147,6 +147,31 @@ try {
         } | ConvertTo-Json -Depth 10) |
         ConvertTo-Json -Depth 10
 
+    Write-Section "Agent Mode Streaming"
+    $streamResponse = Invoke-WebRequest `
+        -Uri "$serverBase/v1/chat/completions" `
+        -Method Post `
+        -ContentType "application/json" `
+        -Body (@{
+            model = "agentbridge-agent"
+            messages = @(
+                @{ role = "user"; content = "Only inspect examples/powershell-sandbox and return a concise summary. Do not edit files." }
+            )
+            stream = $true
+        } | ConvertTo-Json -Depth 10)
+
+    if (-not ($streamResponse.Content -match "chat\.completion\.chunk")) {
+        throw "Streaming response did not include OpenAI-compatible chunk objects."
+    }
+
+    if (-not ($streamResponse.Content -match "data: \[DONE\]")) {
+        throw "Streaming response did not include the final [DONE] marker."
+    }
+
+    $streamResponse.Content -split "\r?\n" |
+        Where-Object { $_ } |
+        Select-Object -First 8
+
     Write-Section "Logs"
     Write-Host "Server stdout: $serverOut"
     Write-Host "Server stderr: $serverErr"

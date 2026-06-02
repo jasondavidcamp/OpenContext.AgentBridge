@@ -103,6 +103,23 @@ Invoke-RestMethod `
   } | ConvertTo-Json -Depth 10)
 ```
 
+Use agent mode with streaming:
+
+```powershell
+Invoke-WebRequest `
+  -Uri "http://127.0.0.1:5320/v1/chat/completions" `
+  -Method Post `
+  -ContentType "application/json" `
+  -Body (@{
+    model = "agentbridge-agent"
+    messages = @(
+      @{ role = "user"; content = "Inspect this workspace and summarize the PowerShell scripts. Do not edit files." }
+    )
+    stream = $true
+  } | ConvertTo-Json -Depth 10) |
+  Select-Object -ExpandProperty Content
+```
+
 Use raw proxy mode:
 
 ```powershell
@@ -124,5 +141,5 @@ Invoke-RestMethod `
 - Open WebUI can use `agentbridge-agent` as a chat model for workspace-aware agent runs.
 - LangGraph can call the local OpenAI-compatible endpoint as a node.
 - Aider can use raw proxy mode when it needs a simple OpenAI-compatible auth/API shim.
-- `agentbridge-agent` does not support streaming yet. Use `stream=false`.
-- Raw proxy mode buffers the upstream response in this first version.
+- `agentbridge-agent` supports OpenAI-style server-sent event streaming. It currently streams the final answer in chunks after the agent run completes.
+- Raw proxy mode forwards upstream streaming responses when clients send `stream=true`.
