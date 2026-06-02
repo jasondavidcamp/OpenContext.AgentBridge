@@ -246,6 +246,7 @@ See [docs/action-protocol.md](docs/action-protocol.md) for the current protocol.
 See [docs/configuration.md](docs/configuration.md) for configuration and provider diagnostics.
 See [docs/dogfood.md](docs/dogfood.md) for safe public-endpoint dogfooding.
 See [docs/aider-docker.md](docs/aider-docker.md) for the Aider-first Docker bridge spike.
+See [docs/client-compatibility.md](docs/client-compatibility.md) for Open WebUI, Aider, LangGraph, and script client guidance.
 See [docs/gemini-openai.md](docs/gemini-openai.md) for the Gemini OpenAI-compatible rehearsal path.
 See [docs/server.md](docs/server.md) for the local OpenAI-compatible AgentBridge server.
 See [docs/local-simulation.md](docs/local-simulation.md) for the local OpenAI-compatible gateway simulator workflow.

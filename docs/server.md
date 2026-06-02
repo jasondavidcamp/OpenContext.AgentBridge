@@ -198,6 +198,8 @@ Invoke-RestMethod `
 
 ## Client Notes
 
+See [client-compatibility.md](client-compatibility.md) for the fuller client compatibility packet.
+
 - Open WebUI can use `agentbridge-agent` as a chat model for workspace-aware agent runs.
 - LangGraph can call the local OpenAI-compatible endpoint as a node.
 - Aider can use raw proxy mode when it needs a simple OpenAI-compatible auth/API shim.
