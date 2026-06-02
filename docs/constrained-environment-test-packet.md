@@ -173,6 +173,16 @@ Expected:
 - Diagnostics are written under `.agentbridge\diagnostics\gateway-smoke`.
 - Optional zip file is created when `-ZipDiagnostics` is used.
 
+## 6. Open WebUI Gateway Smoke
+
+After the gateway smoke passes and Docker Desktop is available, use the focused Open WebUI packet:
+
+```powershell
+.\scripts\Invoke-OpenWebUiGatewaySmoke.ps1 -Endpoint $endpoint -Model $model -ApiKey $plainKey -Recreate
+```
+
+See [openwebui-gateway-test-packet.md](openwebui-gateway-test-packet.md) for the full workflow and fallback image option.
+
 ## Feedback To Send Back
 
 Send a short summary with:
@@ -185,6 +195,7 @@ Send a short summary with:
 - Cheap regression result
 - Gateway model ids
 - Gateway connectivity result
+- Open WebUI gateway smoke result, if attempted
 - Any error messages, redacted for secrets
 
 Do not send API keys, bearer tokens, cookies, internal hostnames, source files, or logs that include sensitive workspace content.

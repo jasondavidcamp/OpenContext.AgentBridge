@@ -3,6 +3,7 @@ param(
     [int]$AgentBridgePort = 5330,
     [int]$OpenWebUiPort = 3100,
     [int]$SimulatorPort = 5331,
+    [string]$Image = "ghcr.io/open-webui/open-webui:main",
     [string]$Email = "admin@localhost",
     [string]$Password = "admin",
     [string]$Prompt = "Inspect only README.md. Do not edit files. Return one sentence under 20 words.",
@@ -69,6 +70,7 @@ try {
             AgentBridgePort = $AgentBridgePort
             OpenWebUiPort = $OpenWebUiPort
             SimulatorPort = $SimulatorPort
+            Image = $Image
         }
 
         if ($SkipBuild) {

@@ -113,6 +113,14 @@ Compatibility smoke:
 .\scripts\Invoke-OpenWebUiSmoke.ps1 -UseSimulator
 ```
 
+Gateway handoff packet:
+
+```powershell
+.\scripts\Invoke-OpenWebUiGatewaySmoke.ps1 -Endpoint "https://gateway.example/v1" -Model "<model-id>" -Recreate
+```
+
+See [openwebui-gateway-test-packet.md](openwebui-gateway-test-packet.md) for the full step-by-step workflow.
+
 Manual settings:
 
 - Base URL: `http://host.docker.internal:5320/v1`
