@@ -2,11 +2,13 @@
 param(
     [int]$AgentBridgePort = 5330,
     [int]$OpenWebUiPort = 3100,
+    [int]$SimulatorPort = 5331,
     [string]$Email = "admin@localhost",
     [string]$Password = "admin",
     [string]$Prompt = "Inspect only README.md. Do not edit files. Return one sentence under 20 words.",
     [switch]$SkipStart,
     [switch]$SkipBuild,
+    [switch]$UseSimulator,
     [switch]$UseExistingProviderConfig,
     [switch]$Recreate
 )
@@ -66,10 +68,15 @@ try {
         $startArgs = @{
             AgentBridgePort = $AgentBridgePort
             OpenWebUiPort = $OpenWebUiPort
+            SimulatorPort = $SimulatorPort
         }
 
         if ($SkipBuild) {
             $startArgs.SkipBuild = $true
+        }
+
+        if ($UseSimulator) {
+            $startArgs.UseSimulator = $true
         }
 
         if ($UseExistingProviderConfig) {
@@ -180,6 +187,7 @@ try {
     [pscustomobject]@{
         open_webui_url = $openWebUiBase
         agentbridge_url = "$agentBridgeBase/v1"
+        upstream = if ($UseSimulator) { "simulator" } else { "configured" }
         conversation_id = $conversationId
         tool_call_count = $conversationDetails.agentbridge.tool_call_count
         assistant_text = $assistantText

@@ -91,6 +91,12 @@ To run an end-to-end Open WebUI compatibility smoke:
 
 The smoke can start the bridge setup, sign into the disposable local Open WebUI session, send one small streaming `agentbridge-agent` request, validate AgentBridge metadata, and fetch the tool-call details endpoint. Use `-SkipStart` when Open WebUI and AgentBridge Server are already running.
 
+For a no-cost Open WebUI compatibility smoke, use the local simulator upstream:
+
+```powershell
+.\scripts\Invoke-OpenWebUiSmoke.ps1 -UseSimulator
+```
+
 List models:
 
 ```powershell
