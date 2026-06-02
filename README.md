@@ -88,6 +88,7 @@ dotnet run --project src/OpenContext.AgentBridge.Cli -- models test .
 - `OpenContext.AgentBridge.Core`: workspace, execution, model, and skill abstractions
 - `OpenContext.AgentBridge.Providers.Gemini`: Gemini provider adapter boundary
 - `OpenContext.AgentBridge.Providers.OpenAiCompatible`: OpenAI-compatible chat completions adapter for constrained gateways
+- `OpenContext.AgentBridge.Server`: local OpenAI-compatible server for client-agnostic bridge testing
 - `OpenContext.AgentBridge.SimulatedGateway`: local OpenAI-compatible gateway simulator for personal-side regression runs
 - `OpenContext.AgentBridge.Storage`: SQLite conversation persistence
 - `docker/`: optional tool container assets
@@ -209,5 +210,6 @@ See [docs/configuration.md](docs/configuration.md) for configuration and provide
 See [docs/dogfood.md](docs/dogfood.md) for safe public-endpoint dogfooding.
 See [docs/aider-docker.md](docs/aider-docker.md) for the Aider-first Docker bridge spike.
 See [docs/gemini-openai.md](docs/gemini-openai.md) for the Gemini OpenAI-compatible rehearsal path.
+See [docs/server.md](docs/server.md) for the local OpenAI-compatible AgentBridge server.
 See [docs/local-simulation.md](docs/local-simulation.md) for the local OpenAI-compatible gateway simulator workflow.
 See [docs/gateway.md](docs/gateway.md) for the OpenAI-compatible gateway provider profile.
