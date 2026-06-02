@@ -45,6 +45,14 @@ dotnet build OpenContext.AgentBridge.sln
 dotnet test OpenContext.AgentBridge.sln
 ```
 
+Run the cheap pre-push regression set:
+
+```powershell
+.\scripts\Invoke-CheapRegression.ps1
+```
+
+Use `-SkipOpenWebUi` when Docker is unavailable. The default path uses the local simulator for the Open WebUI smoke, so it does not spend live model calls.
+
 Initialize a workspace:
 
 ```powershell
