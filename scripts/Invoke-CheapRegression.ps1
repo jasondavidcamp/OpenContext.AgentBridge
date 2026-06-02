@@ -56,15 +56,41 @@ function Invoke-ReservedTermScan {
         throw "Reserved term scan did not find any paths to scan."
     }
 
-    $matches = & rg -n -i $pattern @paths 2>$null
-    $exitCode = $LASTEXITCODE
-    if ($exitCode -eq 0) {
-        $matches
-        throw "Reserved term scan found matches."
+    if (Get-Command rg -ErrorAction SilentlyContinue) {
+        $matches = & rg -n -i $pattern @paths 2>$null
+        $exitCode = $LASTEXITCODE
+        if ($exitCode -eq 0) {
+            $matches
+            throw "Reserved term scan found matches."
+        }
+
+        if ($exitCode -ne 1) {
+            throw "Reserved term scan failed with exit code $exitCode."
+        }
+
+        Write-Host "Reserved term scan clean."
+        return
     }
 
-    if ($exitCode -ne 1) {
-        throw "Reserved term scan failed with exit code $exitCode."
+    $files = foreach ($path in $paths) {
+        if (Test-Path -LiteralPath $path -PathType Leaf) {
+            Get-Item -LiteralPath $path
+            continue
+        }
+
+        Get-ChildItem -LiteralPath $path -Recurse -File |
+            Where-Object {
+                $relativePath = Resolve-Path -LiteralPath $_.FullName -Relative
+                -not ($relativePath -match '(^|[\\/])(bin|obj)([\\/]|$)')
+            }
+    }
+
+    $fallbackMatches = $files |
+        Select-String -Pattern $pattern -ErrorAction SilentlyContinue
+    if ($fallbackMatches) {
+        $fallbackMatches |
+            ForEach-Object { "$($_.Path):$($_.LineNumber):$($_.Line.Trim())" }
+        throw "Reserved term scan found matches."
     }
 
     Write-Host "Reserved term scan clean."

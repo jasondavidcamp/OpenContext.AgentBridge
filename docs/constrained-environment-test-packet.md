@@ -28,6 +28,8 @@ dotnet build .\OpenContext.AgentBridge.sln
 dotnet test .\OpenContext.AgentBridge.sln
 ```
 
+Run each command separately. If copied commands are collapsed onto one line by email or chat formatting, paste them one at a time instead.
+
 Capture:
 
 - .NET SDK version
@@ -58,6 +60,14 @@ Invoke-RestMethod `
     stream = $false
   } | ConvertTo-Json -Depth 10) |
   ConvertTo-Json -Depth 10
+```
+
+If line breaks are collapsed by email or chat formatting, use these one-line forms:
+
+```powershell
+Invoke-RestMethod -Uri "http://127.0.0.1:5320/v1/models" | ConvertTo-Json -Depth 10
+
+Invoke-RestMethod -Uri "http://127.0.0.1:5320/v1/chat/completions" -Method Post -ContentType "application/json" -Body (@{ model = "agentbridge-agent"; messages = @(@{ role = "user"; content = "Inspect only README.md. Do not edit files. Return one sentence." }); stream = $false } | ConvertTo-Json -Depth 10) | ConvertTo-Json -Depth 10
 ```
 
 Stop the local simulator bridge:
