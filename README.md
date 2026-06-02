@@ -67,6 +67,8 @@ Run the cheap pre-push regression set:
 
 Use `-SkipOpenWebUi` when Docker is unavailable. The default path uses the local simulator for the Open WebUI smoke, so it does not spend live model calls.
 
+For slower workstation handoff testing, use the [constrained environment test packet](docs/constrained-environment-test-packet.md).
+
 Initialize a workspace:
 
 ```powershell
