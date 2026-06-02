@@ -153,6 +153,14 @@ OPENAI_API_BASE=http://host.docker.internal:5320/v1
 
 See [aider-docker.md](aider-docker.md) for the tested Docker wrapper and image notes.
 
+Gateway canary:
+
+```powershell
+.\scripts\Invoke-AiderGatewayCanary.ps1 -Endpoint "https://gateway.example/v1" -Model "<model-id>"
+```
+
+See [aider-gateway-test-packet.md](aider-gateway-test-packet.md) for the step-by-step workflow.
+
 ## LangGraph
 
 Recommended mode: depends on graph ownership.
@@ -225,7 +233,8 @@ Use this order to reduce slow handoff loops:
 4. Open WebUI simulator smoke: `.\scripts\Invoke-OpenWebUiSmoke.ps1 -UseSimulator`
 5. Live Gemini canary: `.\scripts\Invoke-GeminiServerCanary.ps1`
 6. Live Gemini agent canary, only when needed: `.\scripts\Invoke-GeminiServerCanary.ps1 -IncludeAgentMode`
-7. Restricted-environment packet: [constrained-environment-test-packet.md](constrained-environment-test-packet.md)
+7. Aider gateway canary: `.\scripts\Invoke-AiderGatewayCanary.ps1 -Endpoint "https://gateway.example/v1" -Model "<model-id>"`
+8. Restricted-environment packet: [constrained-environment-test-packet.md](constrained-environment-test-packet.md)
 
 ## Current Boundaries
 

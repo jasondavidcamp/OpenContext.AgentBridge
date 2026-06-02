@@ -145,6 +145,18 @@ The image keeps the same Aider entrypoint as the official image, but adds the .N
   -- --map-tokens 0 --no-stream --no-pretty --yes-always
 ```
 
+## AgentBridge Raw Proxy Canary
+
+Use the gateway canary to test Aider through AgentBridge raw proxy with a scratch workspace:
+
+```powershell
+.\scripts\Invoke-AiderGatewayCanary.ps1 -Endpoint "https://gateway.example/v1" -Model "<model-id>"
+```
+
+The canary starts AgentBridge Server, points Aider in Docker at `http://host.docker.internal:<port>/v1`, edits the safe C# sandbox, runs the validation command inside Docker, and removes the scratch workspace unless `-KeepWorkspace` is set.
+
+See [aider-gateway-test-packet.md](aider-gateway-test-packet.md) for the step-by-step handoff packet.
+
 ## Boundary Decision
 
 If Aider can run acceptably against the target gateway, AgentBridge should become:
