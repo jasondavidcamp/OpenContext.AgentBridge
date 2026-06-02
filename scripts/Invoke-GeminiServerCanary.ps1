@@ -135,6 +135,7 @@ try {
 
     if ($IncludeAgentMode) {
         Write-Section "Agent Mode Canary"
+        $expectedAgentPath = "examples/powershell-sandbox/Get-Greeting.ps1"
         $agentResponse = Invoke-RestMethod `
             -Uri "$serverBase/v1/chat/completions" `
             -Method Post `
@@ -142,7 +143,7 @@ try {
             -Body (@{
                 model = "agentbridge-agent"
                 messages = @(
-                    @{ role = "user"; content = "Inspect only examples/powershell-sandbox/Get-Greeting.ps1. Do not edit files. Return a concise final summary under 25 words." }
+                    @{ role = "user"; content = "Use tools to read only $expectedAgentPath. Do not edit files. Return a concise final summary under 25 words." }
                 )
                 stream = $false
                 max_tokens = 700
@@ -156,6 +157,22 @@ try {
 
         if ($agentResponse.agentbridge.successful_tool_call_count -lt 1) {
             throw "Agent mode canary did not complete at least one successful tool call."
+        }
+
+        $conversationId = [string]$agentResponse.agentbridge.conversation_id
+        $conversationDetails = Invoke-RestMethod -Uri "$serverBase/v1/agentbridge/conversations/$conversationId"
+        $conversationDetails | ConvertTo-Json -Depth 10
+
+        $expectedRead = @($conversationDetails.tool_calls) |
+            Where-Object {
+                $_.tool_name -eq "read_file" -and
+                $_.is_success -eq $true -and
+                ([string]$_.arguments_json).Contains($expectedAgentPath)
+            } |
+            Select-Object -First 1
+
+        if (-not $expectedRead) {
+            throw "Agent mode canary did not record a successful read_file call for $expectedAgentPath."
         }
     }
 
