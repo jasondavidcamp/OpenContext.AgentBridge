@@ -95,7 +95,7 @@ public sealed class OpenAiCompatibleOptions
         if (string.IsNullOrWhiteSpace(Endpoint))
         {
             throw new InvalidOperationException(
-                "OpenAI-compatible provider is not configured. Set AGENTBRIDGE_OPENAI_ENDPOINT or AGENTBRIDGE_STARK_ENDPOINT, or configure .agentbridge/config.json.");
+                "OpenAI-compatible provider is not configured. Set AGENTBRIDGE_OPENAI_ENDPOINT or AGENTBRIDGE_GATEWAY_ENDPOINT, or configure .agentbridge/config.json.");
         }
 
         if (!Uri.TryCreate(Endpoint.Trim(), UriKind.Absolute, out var endpoint))

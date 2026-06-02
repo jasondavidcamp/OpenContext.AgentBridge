@@ -1,9 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace OpenContext.AgentBridge.SimulatedStark;
+namespace OpenContext.AgentBridge.SimulatedGateway;
 
-public sealed class SimulatedStarkResponder
+public sealed class SimulatedGatewayResponder
 {
     private const string ModelId = "simulated-gemini-flash";
     private const string SandboxReadmePath = "examples/powershell-sandbox/README.md";

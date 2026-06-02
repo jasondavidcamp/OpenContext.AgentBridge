@@ -8,7 +8,7 @@ https://generativelanguage.googleapis.com/v1beta/openai/
 
 Reference: https://ai.google.dev/gemini-api/docs/openai
 
-AgentBridge can use that endpoint through the generic `openai-compatible` provider. This is useful for rehearsing the same chat-completions contract that STARK exposes, while still using the free Gemini API key you generated in Google AI Studio.
+AgentBridge can use that endpoint through the generic `openai-compatible` provider. This is useful for rehearsing the same chat-completions contract that a constrained gateway exposes, while still using the free Gemini API key you generated in Google AI Studio.
 
 ## Environment Config
 

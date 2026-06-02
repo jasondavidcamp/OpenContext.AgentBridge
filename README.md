@@ -8,7 +8,7 @@ OpenContext.AgentBridge is intended to bridge the gap between limited chat-only 
 
 The initial goal is to help existing and future agent tools work against constrained gateways by providing:
 
-- OpenAI-compatible provider configuration for STARK-style gateways
+- OpenAI-compatible provider configuration for constrained gateways
 - Local simulation for fast personal-side testing
 - Repeatable diagnostics bundles for slower restricted-environment testing
 - Safe workspace boundaries for fallback tool execution
@@ -25,7 +25,7 @@ AgentBridge should stay a bridge. It should use tools such as Aider, Continue, C
 
 AgentBridge should build only the pieces that are missing because the target API or environment is constrained:
 
-- STARK/OpenAI-compatible API adapters and configuration
+- OpenAI-compatible gateway API adapters and configuration
 - Local simulator and contract tests
 - Diagnostics and smoke-test packaging
 - Workspace policy and execution boundaries
@@ -87,8 +87,8 @@ dotnet run --project src/OpenContext.AgentBridge.Cli -- models test .
 - `OpenContext.AgentBridge.Cli`: command-line entry point
 - `OpenContext.AgentBridge.Core`: workspace, execution, model, and skill abstractions
 - `OpenContext.AgentBridge.Providers.Gemini`: Gemini provider adapter boundary
-- `OpenContext.AgentBridge.Providers.OpenAiCompatible`: OpenAI-compatible chat completions adapter for STARK-style gateways
-- `OpenContext.AgentBridge.SimulatedStark`: local STARK/OpenAI-compatible simulator for personal-side regression runs
+- `OpenContext.AgentBridge.Providers.OpenAiCompatible`: OpenAI-compatible chat completions adapter for constrained gateways
+- `OpenContext.AgentBridge.SimulatedGateway`: local OpenAI-compatible gateway simulator for personal-side regression runs
 - `OpenContext.AgentBridge.Storage`: SQLite conversation persistence
 - `docker/`: optional tool container assets
 - `scripts/`: repeatable smoke tests for constrained environments
@@ -121,33 +121,33 @@ $env:AGENTBRIDGE_GEMINI_MODEL = "gemini-1.5-pro"
 $env:AGENTBRIDGE_GEMINI_ENDPOINT = "<optional custom endpoint>"
 ```
 
-STARK and other OpenAI-compatible gateways use `/v1/chat/completions`:
+Constrained OpenAI-compatible gateways use `/v1/chat/completions`:
 
 ```powershell
-$env:AGENTBRIDGE_MODEL_PROVIDER = "stark"
-$env:AGENTBRIDGE_STARK_ENDPOINT = "https://stark.example.mil/v1"
-$env:AGENTBRIDGE_STARK_MODEL = "<model-id-from-v1-models>"
-$env:AGENTBRIDGE_STARK_API_KEY = "<key>"
+$env:AGENTBRIDGE_MODEL_PROVIDER = "gateway"
+$env:AGENTBRIDGE_GATEWAY_ENDPOINT = "https://gateway.example/v1"
+$env:AGENTBRIDGE_GATEWAY_MODEL = "<model-id-from-v1-models>"
+$env:AGENTBRIDGE_GATEWAY_API_KEY = "<key>"
 ```
 
-For a one-command STARK smoke test, run:
+For a one-command Gateway smoke test, run:
 
 ```powershell
-.\scripts\Invoke-StarkSmoke.ps1 -Endpoint "https://stark.example.mil/v1"
+.\scripts\Invoke-GatewaySmoke.ps1 -Endpoint "https://gateway.example/v1"
 ```
 
-The script prompts for the API key without echoing it, builds the repo, lists/tests STARK models, runs a no-edit agent inspection, runs a tiny PowerShell edit/validate/diff loop, runs a symbol-aware C# edit/validate/diff loop, and then resets the sample files. It sets a longer model timeout for slow gateway responses.
+The script prompts for the API key without echoing it, builds the repo, lists/tests gateway models, runs a no-edit agent inspection, runs a tiny PowerShell edit/validate/diff loop, runs a symbol-aware C# edit/validate/diff loop, and then resets the sample files. It sets a longer model timeout for slow gateway responses.
 
 For rapid local iteration without a remote gateway, run the simulator smoke test:
 
 ```powershell
-.\scripts\Invoke-LocalStarkSmoke.ps1
+.\scripts\Invoke-LocalGatewaySmoke.ps1
 ```
 
 To collect a diagnostics bundle from any smoke run:
 
 ```powershell
-.\scripts\Invoke-StarkSmoke.ps1 -Endpoint "https://stark.example.mil/v1" -OutputDirectory ".agentbridge\diagnostics\stark-smoke" -ZipDiagnostics
+.\scripts\Invoke-GatewaySmoke.ps1 -Endpoint "https://gateway.example/v1" -OutputDirectory ".agentbridge\diagnostics\gateway-smoke" -ZipDiagnostics
 ```
 
 Gemini can also be tested through Google's OpenAI-compatible endpoint:
@@ -209,5 +209,5 @@ See [docs/configuration.md](docs/configuration.md) for configuration and provide
 See [docs/dogfood.md](docs/dogfood.md) for safe public-endpoint dogfooding.
 See [docs/aider-docker.md](docs/aider-docker.md) for the Aider-first Docker bridge spike.
 See [docs/gemini-openai.md](docs/gemini-openai.md) for the Gemini OpenAI-compatible rehearsal path.
-See [docs/local-simulation.md](docs/local-simulation.md) for the local STARK-compatible simulator workflow.
-See [docs/stark.md](docs/stark.md) for the STARK/OpenAI-compatible provider profile.
+See [docs/local-simulation.md](docs/local-simulation.md) for the local OpenAI-compatible gateway simulator workflow.
+See [docs/gateway.md](docs/gateway.md) for the OpenAI-compatible gateway provider profile.

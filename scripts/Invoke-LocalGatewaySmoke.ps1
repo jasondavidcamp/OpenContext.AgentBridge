@@ -59,7 +59,7 @@ $logRoot = Join-Path $repoRoot ".agentbridge\simulator-logs"
 $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $stdoutPath = Join-Path $logRoot "simulator-$stamp.out.log"
 $stderrPath = Join-Path $logRoot "simulator-$stamp.err.log"
-$oldApiKey = $env:AGENTBRIDGE_STARK_API_KEY
+$oldApiKey = $env:AGENTBRIDGE_GATEWAY_API_KEY
 $process = $null
 
 Push-Location $repoRoot
@@ -84,7 +84,7 @@ try {
             "run",
             "--no-build",
             "--project",
-            ".\src\OpenContext.AgentBridge.SimulatedStark",
+            ".\src\OpenContext.AgentBridge.SimulatedGateway",
             "--urls",
             $baseUrl
         ) `
@@ -93,11 +93,11 @@ try {
         -RedirectStandardOutput $stdoutPath `
         -RedirectStandardError $stderrPath
 
-    $env:AGENTBRIDGE_STARK_API_KEY = "local-simulator-key"
+    $env:AGENTBRIDGE_GATEWAY_API_KEY = "local-simulator-key"
     Wait-ForSimulator -Endpoint $endpoint -Process $process -StandardErrorPath $stderrPath
 
     Write-Section "Smoke"
-    & .\scripts\Invoke-StarkSmoke.ps1 `
+    & .\scripts\Invoke-GatewaySmoke.ps1 `
         -Endpoint $endpoint `
         -Model $Model `
         -SkipBuild `
@@ -114,6 +114,6 @@ finally {
         [void]$process.WaitForExit(5000)
     }
 
-    $env:AGENTBRIDGE_STARK_API_KEY = $oldApiKey
+    $env:AGENTBRIDGE_GATEWAY_API_KEY = $oldApiKey
     Pop-Location
 }

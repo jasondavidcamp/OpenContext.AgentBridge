@@ -33,7 +33,7 @@ public sealed class OpenAiCompatibleModelProvider : IModelProvider
         if (string.IsNullOrWhiteSpace(_options.Model))
         {
             throw new InvalidOperationException(
-                "OpenAI-compatible provider is not configured. Set AGENTBRIDGE_OPENAI_MODEL or AGENTBRIDGE_STARK_MODEL, or configure .agentbridge/config.json.");
+                "OpenAI-compatible provider is not configured. Set AGENTBRIDGE_OPENAI_MODEL or AGENTBRIDGE_GATEWAY_MODEL, or configure .agentbridge/config.json.");
         }
 
         var endpoint = _options.GetChatCompletionsEndpoint();

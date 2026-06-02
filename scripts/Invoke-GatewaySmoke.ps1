@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
-    [string]$Endpoint = $env:AGENTBRIDGE_STARK_ENDPOINT,
-    [string]$Model = $(if ($env:AGENTBRIDGE_STARK_MODEL) { $env:AGENTBRIDGE_STARK_MODEL } else { "gemini-2.5-flash" }),
+    [string]$Endpoint = $env:AGENTBRIDGE_GATEWAY_ENDPOINT,
+    [string]$Model = $(if ($env:AGENTBRIDGE_GATEWAY_MODEL) { $env:AGENTBRIDGE_GATEWAY_MODEL } else { "gemini-2.5-flash" }),
     [int]$ModelTimeoutSeconds = 300,
     [int]$MaxTokens = 1500,
     [int]$NoEditMaxIterations = 8,
@@ -317,42 +317,42 @@ try {
     Reset-SmokeState -Path $dotNetSamplePath -Reason "preflight"
 
     if ([string]::IsNullOrWhiteSpace($Endpoint)) {
-        $Endpoint = Read-Host "STARK endpoint ending in /v1"
+        $Endpoint = Read-Host "Gateway endpoint ending in /v1"
     }
 
     if ([string]::IsNullOrWhiteSpace($Endpoint)) {
-        throw "A STARK endpoint is required."
+        throw "A gateway endpoint is required."
     }
 
-    if ([string]::IsNullOrWhiteSpace($env:AGENTBRIDGE_STARK_API_KEY)) {
-        $secureKey = Read-Host "Paste STARK API key for this session" -AsSecureString
-        $env:AGENTBRIDGE_STARK_API_KEY = ConvertTo-PlainText $secureKey
+    if ([string]::IsNullOrWhiteSpace($env:AGENTBRIDGE_GATEWAY_API_KEY)) {
+        $secureKey = Read-Host "Paste Gateway API key for this session" -AsSecureString
+        $env:AGENTBRIDGE_GATEWAY_API_KEY = ConvertTo-PlainText $secureKey
     }
 
-    if ([string]::IsNullOrWhiteSpace($env:AGENTBRIDGE_STARK_API_KEY)) {
-        throw "A STARK API key is required."
+    if ([string]::IsNullOrWhiteSpace($env:AGENTBRIDGE_GATEWAY_API_KEY)) {
+        throw "A gateway API key is required."
     }
 
-    $env:AGENTBRIDGE_MODEL_PROVIDER = "stark"
-    $env:AGENTBRIDGE_STARK_ENDPOINT = $Endpoint.TrimEnd("/")
-    $env:AGENTBRIDGE_STARK_MODEL = $Model
-    $env:AGENTBRIDGE_STARK_TIMEOUT_SECONDS = "$ModelTimeoutSeconds"
-    $env:AGENTBRIDGE_STARK_MAX_TOKENS = "$MaxTokens"
+    $env:AGENTBRIDGE_MODEL_PROVIDER = "gateway"
+    $env:AGENTBRIDGE_GATEWAY_ENDPOINT = $Endpoint.TrimEnd("/")
+    $env:AGENTBRIDGE_GATEWAY_MODEL = $Model
+    $env:AGENTBRIDGE_GATEWAY_TIMEOUT_SECONDS = "$ModelTimeoutSeconds"
+    $env:AGENTBRIDGE_GATEWAY_MAX_TOKENS = "$MaxTokens"
 
     $shell = Get-PowerShellHost
     Initialize-Diagnostics `
         -Directory $OutputDirectory `
         -Repository $repoRoot `
-        -Endpoint $env:AGENTBRIDGE_STARK_ENDPOINT `
-        -Model $env:AGENTBRIDGE_STARK_MODEL `
+        -Endpoint $env:AGENTBRIDGE_GATEWAY_ENDPOINT `
+        -Model $env:AGENTBRIDGE_GATEWAY_MODEL `
         -PowerShellPath $shell.FilePath
 
     Write-Section "Environment"
     Write-Host "Repository: $repoRoot"
-    Write-Host "Endpoint: $($env:AGENTBRIDGE_STARK_ENDPOINT)"
-    Write-Host "Model: $($env:AGENTBRIDGE_STARK_MODEL)"
-    Write-Host "Model timeout seconds: $($env:AGENTBRIDGE_STARK_TIMEOUT_SECONDS)"
-    Write-Host "Max tokens: $($env:AGENTBRIDGE_STARK_MAX_TOKENS)"
+    Write-Host "Endpoint: $($env:AGENTBRIDGE_GATEWAY_ENDPOINT)"
+    Write-Host "Model: $($env:AGENTBRIDGE_GATEWAY_MODEL)"
+    Write-Host "Model timeout seconds: $($env:AGENTBRIDGE_GATEWAY_TIMEOUT_SECONDS)"
+    Write-Host "Max tokens: $($env:AGENTBRIDGE_GATEWAY_MAX_TOKENS)"
     Write-Host "PowerShell host: $($shell.FilePath)"
     Write-Host "API key: configured, not displayed"
 
@@ -361,7 +361,7 @@ try {
         Invoke-NativeCommand "dotnet" @("build", ".\OpenContext.AgentBridge.sln") -StepName "build"
     }
 
-    Write-Section "STARK Models"
+    Write-Section "Gateway Models"
     Invoke-NativeCommand "dotnet" @(
         "run",
         "--project",
@@ -371,10 +371,10 @@ try {
         "list",
         ".",
         "--provider",
-        "stark"
-    ) -StepName "stark-models-list"
+        "gateway"
+    ) -StepName "gateway-models-list"
 
-    Write-Section "STARK Model Test"
+    Write-Section "Gateway Model Test"
     Invoke-NativeCommand "dotnet" @(
         "run",
         "--project",
@@ -384,10 +384,10 @@ try {
         "test",
         ".",
         "--provider",
-        "stark",
+        "gateway",
         "--model",
-        $env:AGENTBRIDGE_STARK_MODEL
-    ) -StepName "stark-model-test"
+        $env:AGENTBRIDGE_GATEWAY_MODEL
+    ) -StepName "gateway-model-test"
 
     Write-Section "PowerShell Sandbox Baseline"
     Invoke-NativeCommand $shell.FilePath ($shell.Prefix + @("-File", ".\$powerShellSamplePath", "-Name", "AgentBridge")) -StepName "powershell-sandbox-baseline"

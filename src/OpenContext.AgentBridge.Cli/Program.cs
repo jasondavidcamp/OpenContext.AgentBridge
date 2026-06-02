@@ -435,7 +435,7 @@ internal static class ProgramMain
 
         if (!string.Equals(NormalizeProviderName(config.ModelProvider), "openai-compatible", StringComparison.Ordinal))
         {
-            Console.Error.WriteLine("Model listing is currently available for openai-compatible or stark providers.");
+            Console.Error.WriteLine("Model listing is currently available for openai-compatible or gateway providers.");
             return 1;
         }
 
@@ -646,7 +646,7 @@ internal static class ProgramMain
     {
         return provider.ToLowerInvariant() switch
         {
-            "openai" or "openai-compatible" or "stark" or "gemini-openai" or "gemini-openai-compatible" => "openai-compatible",
+            "openai" or "openai-compatible" or "gateway" or "gemini-openai" or "gemini-openai-compatible" => "openai-compatible",
             var normalized => normalized
         };
     }
@@ -930,10 +930,10 @@ internal static class ProgramMain
               AGENTBRIDGE_GEMINI_API_KEY
               AGENTBRIDGE_GEMINI_ENDPOINT
               AGENTBRIDGE_GEMINI_MODEL
-              AGENTBRIDGE_OPENAI_API_KEY or AGENTBRIDGE_STARK_API_KEY
-              AGENTBRIDGE_OPENAI_ENDPOINT or AGENTBRIDGE_STARK_ENDPOINT
-              AGENTBRIDGE_OPENAI_MODEL or AGENTBRIDGE_STARK_MODEL
-              AGENTBRIDGE_HTTP_TIMEOUT_SECONDS or AGENTBRIDGE_STARK_TIMEOUT_SECONDS
+              AGENTBRIDGE_OPENAI_API_KEY or AGENTBRIDGE_GATEWAY_API_KEY
+              AGENTBRIDGE_OPENAI_ENDPOINT or AGENTBRIDGE_GATEWAY_ENDPOINT
+              AGENTBRIDGE_OPENAI_MODEL or AGENTBRIDGE_GATEWAY_MODEL
+              AGENTBRIDGE_HTTP_TIMEOUT_SECONDS or AGENTBRIDGE_GATEWAY_TIMEOUT_SECONDS
               AGENTBRIDGE_DEFAULT_EXECUTOR
               AGENTBRIDGE_MAX_ITERATIONS
               AGENTBRIDGE_LOG_MODEL_TRAFFIC
@@ -979,8 +979,8 @@ internal static class ProgramMain
             AgentBridge Models
 
             Usage:
-              agentbridge models list [workspace] [--provider openai-compatible|stark|gemini-openai] [--endpoint url] [--api-key key] [--api-key-header name] [--api-key-prefix value]
-              agentbridge models test [workspace] [--provider gemini|openai-compatible|stark|gemini-openai] [--endpoint url] [--model name] [--api-key key] [--api-key-header name] [--api-key-prefix value] [--message text] [--log-traffic]
+              agentbridge models list [workspace] [--provider openai-compatible|gateway|gemini-openai] [--endpoint url] [--api-key key] [--api-key-header name] [--api-key-prefix value]
+              agentbridge models test [workspace] [--provider gemini|openai-compatible|gateway|gemini-openai] [--endpoint url] [--model name] [--api-key key] [--api-key-header name] [--api-key-prefix value] [--message text] [--log-traffic]
             """);
     }
 

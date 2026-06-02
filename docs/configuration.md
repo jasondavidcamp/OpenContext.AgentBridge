@@ -60,24 +60,24 @@ $env:AGENTBRIDGE_GEMINI_ENDPOINT = "<endpoint>"
 $env:AGENTBRIDGE_GEMINI_MODEL = "<model>"
 ```
 
-For STARK or another OpenAI-compatible gateway:
+For a constrained OpenAI-compatible gateway:
 
 ```powershell
-$env:AGENTBRIDGE_MODEL_PROVIDER = "stark"
-$env:AGENTBRIDGE_STARK_ENDPOINT = "https://stark.example.mil/v1"
-$env:AGENTBRIDGE_STARK_MODEL = "<model-id-from-v1-models>"
-$env:AGENTBRIDGE_STARK_API_KEY = "<key>"
-$env:AGENTBRIDGE_STARK_TIMEOUT_SECONDS = "300"
+$env:AGENTBRIDGE_MODEL_PROVIDER = "gateway"
+$env:AGENTBRIDGE_GATEWAY_ENDPOINT = "https://gateway.example/v1"
+$env:AGENTBRIDGE_GATEWAY_MODEL = "<model-id-from-v1-models>"
+$env:AGENTBRIDGE_GATEWAY_API_KEY = "<key>"
+$env:AGENTBRIDGE_GATEWAY_TIMEOUT_SECONDS = "300"
 ```
 
 If the gateway expects a custom API key header instead of `Authorization: Bearer <key>`:
 
 ```powershell
-$env:AGENTBRIDGE_STARK_API_KEY_HEADER = "X-STARK-Key"
-$env:AGENTBRIDGE_STARK_API_KEY_PREFIX = ""
+$env:AGENTBRIDGE_GATEWAY_API_KEY_HEADER = "X-Gateway-Key"
+$env:AGENTBRIDGE_GATEWAY_API_KEY_PREFIX = ""
 ```
 
-For slow gateways, set `AGENTBRIDGE_STARK_TIMEOUT_SECONDS` or the provider-neutral `AGENTBRIDGE_HTTP_TIMEOUT_SECONDS`. The default .NET HTTP timeout is 100 seconds when this is not configured.
+For slow gateways, set `AGENTBRIDGE_GATEWAY_TIMEOUT_SECONDS` or the provider-neutral `AGENTBRIDGE_HTTP_TIMEOUT_SECONDS`. The default .NET HTTP timeout is 100 seconds when this is not configured.
 
 The generic names also work:
 
@@ -99,10 +99,10 @@ $env:AGENTBRIDGE_OPENAI_API_KEY = $env:AGENTBRIDGE_GEMINI_API_KEY
 
 ## Model Diagnostics
 
-List STARK/OpenAI-compatible models:
+List OpenAI-compatible gateway models:
 
 ```powershell
-dotnet run --project src/OpenContext.AgentBridge.Cli -- models list . --provider stark --endpoint "<endpoint>" --api-key "<key>"
+dotnet run --project src/OpenContext.AgentBridge.Cli -- models list . --provider gateway --endpoint "<endpoint>" --api-key "<key>"
 ```
 
 List Gemini models through the OpenAI-compatible endpoint:
@@ -123,10 +123,10 @@ Override endpoint or model for one test:
 dotnet run --project src/OpenContext.AgentBridge.Cli -- models test . --endpoint "<endpoint>" --model "<model>"
 ```
 
-Test STARK without changing workspace config:
+Test a constrained gateway without changing workspace config:
 
 ```powershell
-dotnet run --project src/OpenContext.AgentBridge.Cli -- models test . --provider stark --endpoint "<endpoint>" --model "<model>" --api-key "<key>"
+dotnet run --project src/OpenContext.AgentBridge.Cli -- models test . --provider gateway --endpoint "<endpoint>" --model "<model>" --api-key "<key>"
 ```
 
 Enable request and response logging for one test:

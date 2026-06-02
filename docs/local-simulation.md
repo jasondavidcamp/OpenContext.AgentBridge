@@ -1,6 +1,6 @@
-# Local STARK Simulation
+# Local Gateway Simulation
 
-AgentBridge includes a local OpenAI-compatible simulator so most agent-loop work can happen before testing a restricted gateway. The simulator exposes the same two endpoint shapes used by STARK-style gateways:
+AgentBridge includes a local OpenAI-compatible simulator so most agent-loop work can happen before testing a restricted gateway. The simulator exposes the same two endpoint shapes used by constrained gateways:
 
 - `GET /v1/models`
 - `POST /v1/chat/completions`
@@ -13,33 +13,33 @@ The full smoke run also includes a symbol-aware C# edit where the simulator find
 From the repository root:
 
 ```powershell
-.\scripts\Invoke-LocalStarkSmoke.ps1
+.\scripts\Invoke-LocalGatewaySmoke.ps1
 ```
 
 The wrapper script:
 
 - builds the solution
-- starts `OpenContext.AgentBridge.SimulatedStark` on `http://127.0.0.1:5198`
+- starts `OpenContext.AgentBridge.SimulatedGateway` on `http://127.0.0.1:5198`
 - configures a temporary local API key
-- runs `scripts/Invoke-StarkSmoke.ps1` against the local simulator
+- runs `scripts/Invoke-GatewaySmoke.ps1` against the local simulator
 - stops the simulator when the run finishes
 
 Use `-ConnectivityOnly` when you only want to exercise model listing, model testing, and the PowerShell baseline:
 
 ```powershell
-.\scripts\Invoke-LocalStarkSmoke.ps1 -ConnectivityOnly
+.\scripts\Invoke-LocalGatewaySmoke.ps1 -ConnectivityOnly
 ```
 
 Use `-KeepChanges` to inspect the sample edit after the run:
 
 ```powershell
-.\scripts\Invoke-LocalStarkSmoke.ps1 -KeepChanges
+.\scripts\Invoke-LocalGatewaySmoke.ps1 -KeepChanges
 ```
 
 Use `-OutputDirectory` and `-ZipDiagnostics` to test the diagnostics bundle locally:
 
 ```powershell
-.\scripts\Invoke-LocalStarkSmoke.ps1 -OutputDirectory ".agentbridge\diagnostics\local-smoke" -ZipDiagnostics
+.\scripts\Invoke-LocalGatewaySmoke.ps1 -OutputDirectory ".agentbridge\diagnostics\local-smoke" -ZipDiagnostics
 ```
 
 Simulator logs are written under `.agentbridge/simulator-logs/`.
@@ -49,16 +49,16 @@ Simulator logs are written under `.agentbridge/simulator-logs/`.
 To run the simulator by hand:
 
 ```powershell
-dotnet run --project src/OpenContext.AgentBridge.SimulatedStark --urls http://127.0.0.1:5198
+dotnet run --project src/OpenContext.AgentBridge.SimulatedGateway --urls http://127.0.0.1:5198
 ```
 
 Then point AgentBridge at it:
 
 ```powershell
-$env:AGENTBRIDGE_MODEL_PROVIDER = "stark"
-$env:AGENTBRIDGE_STARK_ENDPOINT = "http://127.0.0.1:5198/v1"
-$env:AGENTBRIDGE_STARK_MODEL = "simulated-gemini-flash"
-$env:AGENTBRIDGE_STARK_API_KEY = "local-simulator-key"
+$env:AGENTBRIDGE_MODEL_PROVIDER = "gateway"
+$env:AGENTBRIDGE_GATEWAY_ENDPOINT = "http://127.0.0.1:5198/v1"
+$env:AGENTBRIDGE_GATEWAY_MODEL = "simulated-gemini-flash"
+$env:AGENTBRIDGE_GATEWAY_API_KEY = "local-simulator-key"
 
 dotnet run --project src/OpenContext.AgentBridge.Cli -- models test .
 ```

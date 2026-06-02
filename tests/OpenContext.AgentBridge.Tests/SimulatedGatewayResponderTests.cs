@@ -1,15 +1,15 @@
 using System.Text.Json;
 using OpenContext.AgentBridge.Core.Tools;
-using OpenContext.AgentBridge.SimulatedStark;
+using OpenContext.AgentBridge.SimulatedGateway;
 
 namespace OpenContext.AgentBridge.Tests;
 
-public sealed class SimulatedStarkResponderTests
+public sealed class SimulatedGatewayResponderTests
 {
     [Fact]
     public void CreateAssistantContent_returns_model_test_response()
     {
-        var responder = new SimulatedStarkResponder();
+        var responder = new SimulatedGatewayResponder();
 
         var content = responder.CreateAssistantContent(new[]
         {
@@ -24,7 +24,7 @@ public sealed class SimulatedStarkResponderTests
     [Fact]
     public void CreateAssistantContent_drives_no_edit_smoke_through_two_reads()
     {
-        var responder = new SimulatedStarkResponder();
+        var responder = new SimulatedGatewayResponder();
         var messages = new List<SimulatedChatMessage>
         {
             new("user", "Only inspect examples/powershell-sandbox. Read the README.md and Get-Greeting.ps1.")
@@ -50,7 +50,7 @@ public sealed class SimulatedStarkResponderTests
     [Fact]
     public void CreateAssistantContent_drives_edit_smoke_through_validation_and_diff()
     {
-        var responder = new SimulatedStarkResponder();
+        var responder = new SimulatedGatewayResponder();
         var messages = new List<SimulatedChatMessage>
         {
             new("user", "Only work in examples/powershell-sandbox. Improve the PowerShell script help text in Get-Greeting.ps1 without changing runtime behavior.")
@@ -84,7 +84,7 @@ public sealed class SimulatedStarkResponderTests
     [Fact]
     public void CreateAssistantContent_drives_symbol_aware_edit_smoke_through_validation_and_diff()
     {
-        var responder = new SimulatedStarkResponder();
+        var responder = new SimulatedGatewayResponder();
         var messages = new List<SimulatedChatMessage>
         {
             new(
@@ -124,7 +124,7 @@ public sealed class SimulatedStarkResponderTests
     [Fact]
     public void CreateChatCompletion_returns_openai_compatible_shape()
     {
-        var responder = new SimulatedStarkResponder();
+        var responder = new SimulatedGatewayResponder();
         var requestJson = JsonSerializer.Serialize(new
         {
             model = "simulated-gemini-flash",
@@ -144,7 +144,7 @@ public sealed class SimulatedStarkResponderTests
     }
 
     private static AgentDirective AppendAssistant(
-        SimulatedStarkResponder responder,
+        SimulatedGatewayResponder responder,
         List<SimulatedChatMessage> messages)
     {
         var content = responder.CreateAssistantContent(messages);

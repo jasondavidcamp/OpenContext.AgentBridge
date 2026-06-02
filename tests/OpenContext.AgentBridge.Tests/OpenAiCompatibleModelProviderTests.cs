@@ -20,7 +20,7 @@ public sealed class OpenAiCompatibleModelProviderTests
               "id": "chatcmpl-test",
               "object": "chat.completion",
               "created": 1,
-              "model": "gemini-stark",
+              "model": "gemini-gateway",
               "choices": [
                 {
                   "index": 0,
@@ -38,8 +38,8 @@ public sealed class OpenAiCompatibleModelProviderTests
             httpClient,
             new OpenAiCompatibleOptions
             {
-                Endpoint = "https://stark.test/v1",
-                Model = "gemini-stark",
+                Endpoint = "https://gateway.test/v1",
+                Model = "gemini-gateway",
                 ApiKey = "secret"
             });
 
@@ -55,13 +55,13 @@ public sealed class OpenAiCompatibleModelProviderTests
 
         Assert.Equal("""{"type":"final","message":"ok"}""", response.Content);
         Assert.Equal(HttpMethod.Post, handler.RequestMethod);
-        Assert.Equal("https://stark.test/v1/chat/completions", handler.RequestUri?.ToString());
+        Assert.Equal("https://gateway.test/v1/chat/completions", handler.RequestUri?.ToString());
         Assert.Equal("Bearer", handler.AuthorizationScheme);
         Assert.Equal("secret", handler.AuthorizationParameter);
 
         using var document = JsonDocument.Parse(handler.RequestBody);
         var root = document.RootElement;
-        Assert.Equal("gemini-stark", root.GetProperty("model").GetString());
+        Assert.Equal("gemini-gateway", root.GetProperty("model").GetString());
         Assert.False(root.GetProperty("stream").GetBoolean());
 
         var messages = root.GetProperty("messages");
@@ -91,10 +91,10 @@ public sealed class OpenAiCompatibleModelProviderTests
             httpClient,
             new OpenAiCompatibleOptions
             {
-                Endpoint = "https://stark.test/v1/chat/completions",
-                Model = "gemini-stark",
+                Endpoint = "https://gateway.test/v1/chat/completions",
+                Model = "gemini-gateway",
                 ApiKey = "secret",
-                ApiKeyHeader = "X-STARK-Key",
+                ApiKeyHeader = "X-Gateway-Key",
                 ApiKeyPrefix = string.Empty
             });
 
@@ -108,8 +108,8 @@ public sealed class OpenAiCompatibleModelProviderTests
                 Array.Empty<Skill>(),
                 Array.Empty<ToolDefinition>()));
 
-        Assert.Equal("https://stark.test/v1/chat/completions", handler.RequestUri?.ToString());
-        Assert.True(handler.Headers.TryGetValue("X-STARK-Key", out var value));
+        Assert.Equal("https://gateway.test/v1/chat/completions", handler.RequestUri?.ToString());
+        Assert.True(handler.Headers.TryGetValue("X-Gateway-Key", out var value));
         Assert.Equal("secret", value);
 
         using var document = JsonDocument.Parse(handler.RequestBody);
@@ -122,7 +122,7 @@ public sealed class OpenAiCompatibleModelProviderTests
     {
         var endpoint = new OpenAiCompatibleOptions
         {
-            Endpoint = "https://stark.test/v1?api_key=secret-token",
+            Endpoint = "https://gateway.test/v1?api_key=secret-token",
             Model = "model"
         }.GetRedactedEndpoint();
 
@@ -132,7 +132,7 @@ public sealed class OpenAiCompatibleModelProviderTests
 
     [Theory]
     [InlineData("https://api.openai.com/v1", "https://api.openai.com/v1/chat/completions", "https://api.openai.com/v1/models")]
-    [InlineData("https://stark.test/v1/chat/completions", "https://stark.test/v1/chat/completions", "https://stark.test/v1/models")]
+    [InlineData("https://gateway.test/v1/chat/completions", "https://gateway.test/v1/chat/completions", "https://gateway.test/v1/models")]
     [InlineData("https://generativelanguage.googleapis.com/v1beta/openai/", "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", "https://generativelanguage.googleapis.com/v1beta/openai/models")]
     [InlineData("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", "https://generativelanguage.googleapis.com/v1beta/openai/models")]
     public void Options_builds_chat_and_models_endpoints(
@@ -159,10 +159,10 @@ public sealed class OpenAiCompatibleModelProviderTests
               "object": "list",
               "data": [
                 {
-                  "id": "gemini-stark",
+                  "id": "gemini-gateway",
                   "object": "model",
                   "created": 1686935002,
-                  "owned_by": "stark-proxy"
+                  "owned_by": "gateway-proxy"
                 }
               ]
             }
@@ -172,17 +172,17 @@ public sealed class OpenAiCompatibleModelProviderTests
             httpClient,
             new OpenAiCompatibleOptions
             {
-                Endpoint = "https://stark.test/v1/chat/completions",
+                Endpoint = "https://gateway.test/v1/chat/completions",
                 Model = "ignored",
                 ApiKey = "secret"
             });
 
         var models = await client.ListAsync();
 
-        Assert.Equal("https://stark.test/v1/models", handler.RequestUri?.ToString());
+        Assert.Equal("https://gateway.test/v1/models", handler.RequestUri?.ToString());
         var model = Assert.Single(models);
-        Assert.Equal("gemini-stark", model.Id);
-        Assert.Equal("stark-proxy", model.OwnedBy);
+        Assert.Equal("gemini-gateway", model.Id);
+        Assert.Equal("gateway-proxy", model.OwnedBy);
         Assert.Equal(1686935002, model.Created);
     }
 
@@ -232,8 +232,8 @@ public sealed class OpenAiCompatibleModelProviderTests
             httpClient,
             new OpenAiCompatibleOptions
             {
-                Endpoint = "https://stark.test/v1",
-                Model = "gemini-stark",
+                Endpoint = "https://gateway.test/v1",
+                Model = "gemini-gateway",
                 ApiKey = "secret",
                 DelayAsync = (delay, _) =>
                 {

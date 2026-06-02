@@ -83,9 +83,9 @@ To pass extra Aider flags, place them after `--`. This is useful for low-quota s
 For a constrained OpenAI-compatible gateway that accepts bearer API keys:
 
 ```powershell
-$env:AGENTBRIDGE_STARK_ENDPOINT = "https://gateway.example/v1"
-$env:AGENTBRIDGE_STARK_MODEL = "<model-id-from-v1-models>"
-$env:AGENTBRIDGE_STARK_API_KEY = "<key>"
+$env:AGENTBRIDGE_GATEWAY_ENDPOINT = "https://gateway.example/v1"
+$env:AGENTBRIDGE_GATEWAY_MODEL = "<model-id-from-v1-models>"
+$env:AGENTBRIDGE_GATEWAY_API_KEY = "<key>"
 
 .\scripts\Start-AiderDocker.ps1 `
   -Workspace . `

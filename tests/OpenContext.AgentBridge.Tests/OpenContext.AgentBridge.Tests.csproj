@@ -25,7 +25,7 @@
     <ProjectReference Include="..\..\src\OpenContext.AgentBridge.Storage\OpenContext.AgentBridge.Storage.csproj" />
     <ProjectReference Include="..\..\src\OpenContext.AgentBridge.Providers.Gemini\OpenContext.AgentBridge.Providers.Gemini.csproj" />
     <ProjectReference Include="..\..\src\OpenContext.AgentBridge.Providers.OpenAiCompatible\OpenContext.AgentBridge.Providers.OpenAiCompatible.csproj" />
-    <ProjectReference Include="..\..\src\OpenContext.AgentBridge.SimulatedStark\OpenContext.AgentBridge.SimulatedStark.csproj" />
+    <ProjectReference Include="..\..\src\OpenContext.AgentBridge.SimulatedGateway\OpenContext.AgentBridge.SimulatedGateway.csproj" />
   </ItemGroup>
 
 </Project>

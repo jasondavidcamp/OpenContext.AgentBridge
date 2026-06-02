@@ -112,43 +112,43 @@ public sealed class AgentBridgeConfigStore
                 FirstNonBlank(
                     overrides.OpenAiCompatibleModel,
                     Environment.GetEnvironmentVariable("AGENTBRIDGE_OPENAI_MODEL"),
-                    Environment.GetEnvironmentVariable("AGENTBRIDGE_STARK_MODEL"),
+                    Environment.GetEnvironmentVariable("AGENTBRIDGE_GATEWAY_MODEL"),
                     openAiCompatible.Model,
                     AgentBridgeDefaults.DefaultOpenAiCompatibleModel),
                 FirstNonBlankOrNull(
                     overrides.OpenAiCompatibleEndpoint,
                     Environment.GetEnvironmentVariable("AGENTBRIDGE_OPENAI_ENDPOINT"),
-                    Environment.GetEnvironmentVariable("AGENTBRIDGE_STARK_ENDPOINT"),
+                    Environment.GetEnvironmentVariable("AGENTBRIDGE_GATEWAY_ENDPOINT"),
                     openAiCompatible.Endpoint),
                 FirstNonBlankOrNull(
                     overrides.OpenAiCompatibleApiKey,
                     Environment.GetEnvironmentVariable("AGENTBRIDGE_OPENAI_API_KEY"),
-                    Environment.GetEnvironmentVariable("AGENTBRIDGE_STARK_API_KEY"),
+                    Environment.GetEnvironmentVariable("AGENTBRIDGE_GATEWAY_API_KEY"),
                     openAiCompatible.ApiKey),
                 FirstNonBlank(
                     overrides.OpenAiCompatibleApiKeyHeader,
                     Environment.GetEnvironmentVariable("AGENTBRIDGE_OPENAI_API_KEY_HEADER"),
-                    Environment.GetEnvironmentVariable("AGENTBRIDGE_STARK_API_KEY_HEADER"),
+                    Environment.GetEnvironmentVariable("AGENTBRIDGE_GATEWAY_API_KEY_HEADER"),
                     openAiCompatible.ApiKeyHeader,
                     AgentBridgeDefaults.DefaultOpenAiCompatibleApiKeyHeader),
                 FirstValueOrDefault(
                     AgentBridgeDefaults.DefaultOpenAiCompatibleApiKeyPrefix,
                     overrides.OpenAiCompatibleApiKeyPrefix,
                     Environment.GetEnvironmentVariable("AGENTBRIDGE_OPENAI_API_KEY_PREFIX"),
-                    Environment.GetEnvironmentVariable("AGENTBRIDGE_STARK_API_KEY_PREFIX"),
+                    Environment.GetEnvironmentVariable("AGENTBRIDGE_GATEWAY_API_KEY_PREFIX"),
                     openAiCompatible.ApiKeyPrefix),
                 FirstFloatOrNull(
                     Environment.GetEnvironmentVariable("AGENTBRIDGE_OPENAI_TEMPERATURE"),
-                    Environment.GetEnvironmentVariable("AGENTBRIDGE_STARK_TEMPERATURE"),
+                    Environment.GetEnvironmentVariable("AGENTBRIDGE_GATEWAY_TEMPERATURE"),
                     openAiCompatible.Temperature),
                 FirstIntOrNull(
                     Environment.GetEnvironmentVariable("AGENTBRIDGE_OPENAI_MAX_TOKENS"),
-                    Environment.GetEnvironmentVariable("AGENTBRIDGE_STARK_MAX_TOKENS"),
+                    Environment.GetEnvironmentVariable("AGENTBRIDGE_GATEWAY_MAX_TOKENS"),
                     openAiCompatible.MaxTokens),
                 FirstIntOrNull(
                     Environment.GetEnvironmentVariable("AGENTBRIDGE_HTTP_TIMEOUT_SECONDS"),
                     Environment.GetEnvironmentVariable("AGENTBRIDGE_OPENAI_TIMEOUT_SECONDS"),
-                    Environment.GetEnvironmentVariable("AGENTBRIDGE_STARK_TIMEOUT_SECONDS"),
+                    Environment.GetEnvironmentVariable("AGENTBRIDGE_GATEWAY_TIMEOUT_SECONDS"),
                     openAiCompatible.RequestTimeoutSeconds)));
     }
 

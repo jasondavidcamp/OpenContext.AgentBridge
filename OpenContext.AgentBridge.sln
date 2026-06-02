@@ -19,7 +19,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenContext.AgentBridge.Tes
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenContext.AgentBridge.Providers.OpenAiCompatible", "src\OpenContext.AgentBridge.Providers.OpenAiCompatible\OpenContext.AgentBridge.Providers.OpenAiCompatible.csproj", "{4C388AB1-FAEE-4E34-B03A-87A09466A634}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenContext.AgentBridge.SimulatedStark", "src\OpenContext.AgentBridge.SimulatedStark\OpenContext.AgentBridge.SimulatedStark.csproj", "{38A7E3E8-EED2-4DDE-B9EC-E089FB9872A1}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenContext.AgentBridge.SimulatedGateway", "src\OpenContext.AgentBridge.SimulatedGateway\OpenContext.AgentBridge.SimulatedGateway.csproj", "{38A7E3E8-EED2-4DDE-B9EC-E089FB9872A1}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

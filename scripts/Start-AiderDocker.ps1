@@ -46,7 +46,7 @@ function Resolve-DefaultModel {
     $configuredModel = Get-FirstEnvironmentValue @(
         "AIDER_MODEL",
         "AGENTBRIDGE_OPENAI_MODEL",
-        "AGENTBRIDGE_STARK_MODEL"
+        "AGENTBRIDGE_GATEWAY_MODEL"
     )
     if (-not [string]::IsNullOrWhiteSpace($configuredModel)) {
         return $configuredModel
@@ -63,7 +63,7 @@ function Resolve-DefaultEndpoint {
     $configuredEndpoint = Get-FirstEnvironmentValue @(
         "AIDER_OPENAI_API_BASE",
         "AGENTBRIDGE_OPENAI_ENDPOINT",
-        "AGENTBRIDGE_STARK_ENDPOINT"
+        "AGENTBRIDGE_GATEWAY_ENDPOINT"
     )
     if (-not [string]::IsNullOrWhiteSpace($configuredEndpoint)) {
         return $configuredEndpoint
@@ -84,7 +84,7 @@ function Resolve-ApiKey {
     return Get-FirstEnvironmentValue @(
         "AIDER_OPENAI_API_KEY",
         "AGENTBRIDGE_OPENAI_API_KEY",
-        "AGENTBRIDGE_STARK_API_KEY",
+        "AGENTBRIDGE_GATEWAY_API_KEY",
         "AGENTBRIDGE_GEMINI_API_KEY"
     )
 }
@@ -111,7 +111,7 @@ if ($resolvedModel -notmatch "^[^/]+/") {
 $resolvedEndpoint = Resolve-DefaultEndpoint
 $resolvedApiKey = Resolve-ApiKey
 if ([string]::IsNullOrWhiteSpace($resolvedApiKey)) {
-    throw "No API key found. Set AIDER_OPENAI_API_KEY, AGENTBRIDGE_OPENAI_API_KEY, AGENTBRIDGE_STARK_API_KEY, AGENTBRIDGE_GEMINI_API_KEY, or pass -ApiKeyEnvironmentVariable."
+    throw "No API key found. Set AIDER_OPENAI_API_KEY, AGENTBRIDGE_OPENAI_API_KEY, AGENTBRIDGE_GATEWAY_API_KEY, AGENTBRIDGE_GEMINI_API_KEY, or pass -ApiKeyEnvironmentVariable."
 }
 
 $oldAiderKey = $env:AIDER_OPENAI_API_KEY

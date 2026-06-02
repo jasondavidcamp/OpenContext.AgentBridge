@@ -1,15 +1,15 @@
-using OpenContext.AgentBridge.SimulatedStark;
+using OpenContext.AgentBridge.SimulatedGateway;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 
 var app = builder.Build();
-var responder = new SimulatedStarkResponder();
+var responder = new SimulatedGatewayResponder();
 
 app.MapGet("/", () => Results.Json(new
 {
-    name = "OpenContext.AgentBridge.SimulatedStark",
+    name = "OpenContext.AgentBridge.SimulatedGateway",
     description = "Local OpenAI-compatible simulator for AgentBridge regression runs.",
     endpoints = new[] { "/v1/models", "/v1/chat/completions" }
 }));
