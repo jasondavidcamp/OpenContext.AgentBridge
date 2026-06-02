@@ -30,7 +30,7 @@ app.MapGet("/", () => Results.Json(new
     name = "OpenContext.AgentBridge.Server",
     description = "Local OpenAI-compatible bridge for AgentBridge clients.",
     models = new[] { AgentModelId },
-    endpoints = new[] { "/v1/models", "/v1/chat/completions" }
+    endpoints = new[] { "/v1/models", "/v1/chat/completions", "/v1/agentbridge/conversations/{conversation_id}" }
 }, AgentBridgeServerJson.Options));
 
 app.MapGet("/v1/models", async (HttpContext context, CancellationToken cancellationToken) =>
@@ -96,6 +96,37 @@ app.MapPost("/v1/chat/completions", async Task (HttpContext context, IHttpClient
     }
 });
 
+app.MapGet("/v1/agentbridge/conversations/{conversationId}", async Task (HttpContext context, string conversationId, CancellationToken cancellationToken) =>
+{
+    if (!AuthorizeLocalRequest(context))
+    {
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        return;
+    }
+
+    var workspace = ResolveWorkspace();
+    var store = new SqliteConversationStore(workspace.ConversationDatabasePath);
+    await store.InitializeAsync(cancellationToken);
+
+    var conversation = (await store.ListConversationsAsync(workspace.RootPath, cancellationToken))
+        .FirstOrDefault(candidate => string.Equals(candidate.Id, conversationId, StringComparison.OrdinalIgnoreCase));
+    if (conversation is null)
+    {
+        await WriteErrorAsync(
+            context,
+            StatusCodes.Status404NotFound,
+            $"Conversation not found: {conversationId}",
+            cancellationToken);
+        return;
+    }
+
+    var toolCalls = await store.ReadToolCallsAsync(conversation.Id, cancellationToken);
+    await context.Response.WriteAsJsonAsync(
+        CreateAgentBridgeConversationDetails(conversation, toolCalls),
+        AgentBridgeServerJson.Options,
+        cancellationToken);
+});
+
 app.Run();
 
 static async Task<AgentCompletionResult> RunAgentAsync(
@@ -131,9 +162,10 @@ static async Task<AgentCompletionResult> RunAgentAsync(
         await LoadSkillsAsync(workspace, cancellationToken),
         new AgentLoopOptions(MaxToolIterations: config.MaxIterations),
         cancellationToken);
+    var metadata = CreateAgentBridgeMetadata(conversationId, result.ToolCalls);
 
     return new AgentCompletionResult(
-        ChatCompletionResponse.Create(AgentModelId, result.FinalMessage),
+        ChatCompletionResponse.Create(AgentModelId, result.FinalMessage, metadata),
         conversationId,
         result.ToolCalls.Count);
 }
@@ -224,10 +256,53 @@ static async Task WriteAgentStreamAsync(
             completion.Created,
             completion.Model,
             new ChatDelta(Role: null, Content: null),
-            finishReason: "stop"),
+            finishReason: "stop",
+            completion.AgentBridge),
         cancellationToken);
     await context.Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
     await context.Response.Body.FlushAsync(cancellationToken);
+}
+
+static AgentBridgeResponseMetadata CreateAgentBridgeMetadata(
+    string conversationId,
+    IReadOnlyList<ToolCallRecord> toolCalls)
+{
+    var successfulToolCalls = toolCalls.Count(toolCall => toolCall.IsSuccess);
+    return new AgentBridgeResponseMetadata(
+        conversationId,
+        toolCalls.Count,
+        successfulToolCalls,
+        toolCalls.Count - successfulToolCalls);
+}
+
+static string PreviewToolResult(string value)
+{
+    const int maxCharacters = 400;
+    var oneLine = value
+        .ReplaceLineEndings(" ")
+        .Trim();
+
+    return oneLine.Length <= maxCharacters
+        ? oneLine
+        : oneLine[..maxCharacters] + "...";
+}
+
+static AgentBridgeConversationDetails CreateAgentBridgeConversationDetails(
+    ConversationSummary conversation,
+    IReadOnlyList<ToolCallRecord> toolCalls)
+{
+    return new AgentBridgeConversationDetails(
+        conversation.Id,
+        conversation.CreatedAt,
+        conversation.UpdatedAt,
+        CreateAgentBridgeMetadata(conversation.Id, toolCalls),
+        toolCalls.Select(toolCall => new AgentBridgeToolCallDetails(
+                toolCall.ToolName,
+                toolCall.ArgumentsJson,
+                toolCall.IsSuccess,
+                PreviewToolResult(toolCall.ResultContent),
+                toolCall.CreatedAt))
+            .ToArray());
 }
 
 static async Task WriteSseDataAsync(
@@ -513,9 +588,13 @@ internal sealed record ChatCompletionResponse(
     [property: JsonPropertyName("created")] long Created,
     [property: JsonPropertyName("model")] string Model,
     [property: JsonPropertyName("choices")] IReadOnlyList<ChatChoice> Choices,
-    [property: JsonPropertyName("usage")] Usage? Usage)
+    [property: JsonPropertyName("usage")] Usage? Usage,
+    [property: JsonPropertyName("agentbridge")] AgentBridgeResponseMetadata? AgentBridge)
 {
-    public static ChatCompletionResponse Create(string model, string content)
+    public static ChatCompletionResponse Create(
+        string model,
+        string content,
+        AgentBridgeResponseMetadata? agentBridge = null)
     {
         return new ChatCompletionResponse(
             $"chatcmpl-agentbridge-{Guid.NewGuid():N}",
@@ -529,7 +608,8 @@ internal sealed record ChatCompletionResponse(
                     new ChatResponseMessage("assistant", content),
                     "stop")
             },
-            null);
+            null,
+            agentBridge);
     }
 }
 
@@ -538,14 +618,16 @@ internal sealed record ChatCompletionChunk(
     [property: JsonPropertyName("object")] string Object,
     [property: JsonPropertyName("created")] long Created,
     [property: JsonPropertyName("model")] string Model,
-    [property: JsonPropertyName("choices")] IReadOnlyList<ChatChunkChoice> Choices)
+    [property: JsonPropertyName("choices")] IReadOnlyList<ChatChunkChoice> Choices,
+    [property: JsonPropertyName("agentbridge")] AgentBridgeResponseMetadata? AgentBridge = null)
 {
     public static ChatCompletionChunk Create(
         string id,
         long created,
         string model,
         ChatDelta delta,
-        string? finishReason)
+        string? finishReason,
+        AgentBridgeResponseMetadata? agentBridge = null)
     {
         return new ChatCompletionChunk(
             id,
@@ -555,7 +637,8 @@ internal sealed record ChatCompletionChunk(
             new[]
             {
                 new ChatChunkChoice(0, delta, finishReason)
-            });
+            },
+            agentBridge);
     }
 }
 
@@ -581,6 +664,26 @@ internal sealed record Usage(
     [property: JsonPropertyName("prompt_tokens")] int PromptTokens,
     [property: JsonPropertyName("completion_tokens")] int CompletionTokens,
     [property: JsonPropertyName("total_tokens")] int TotalTokens);
+
+internal sealed record AgentBridgeResponseMetadata(
+    [property: JsonPropertyName("conversation_id")] string ConversationId,
+    [property: JsonPropertyName("tool_call_count")] int ToolCallCount,
+    [property: JsonPropertyName("successful_tool_call_count")] int SuccessfulToolCallCount,
+    [property: JsonPropertyName("failed_tool_call_count")] int FailedToolCallCount);
+
+internal sealed record AgentBridgeConversationDetails(
+    [property: JsonPropertyName("id")] string Id,
+    [property: JsonPropertyName("created_at")] DateTimeOffset CreatedAt,
+    [property: JsonPropertyName("updated_at")] DateTimeOffset UpdatedAt,
+    [property: JsonPropertyName("agentbridge")] AgentBridgeResponseMetadata AgentBridge,
+    [property: JsonPropertyName("tool_calls")] IReadOnlyList<AgentBridgeToolCallDetails> ToolCalls);
+
+internal sealed record AgentBridgeToolCallDetails(
+    [property: JsonPropertyName("tool_name")] string ToolName,
+    [property: JsonPropertyName("arguments_json")] string ArgumentsJson,
+    [property: JsonPropertyName("is_success")] bool IsSuccess,
+    [property: JsonPropertyName("result_preview")] string ResultPreview,
+    [property: JsonPropertyName("created_at")] DateTimeOffset CreatedAt);
 
 internal sealed record ModelsListResponse(
     [property: JsonPropertyName("object")] string Object,

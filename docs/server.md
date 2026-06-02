@@ -9,6 +9,8 @@ The server has two modes:
 
 This keeps AgentBridge client-agnostic. Open WebUI, LangGraph, Aider, scripts, or other tools can point at the same local endpoint while AgentBridge handles constrained upstream auth and the agent workspace.
 
+Agent mode responses include an `agentbridge` metadata object with the conversation id and tool-call counts. Clients can use that conversation id to fetch tool activity from `/v1/agentbridge/conversations/{conversation_id}`.
+
 ## Configuration
 
 Set the workspace that the agent is allowed to use:
@@ -103,6 +105,25 @@ Invoke-RestMethod `
   } | ConvertTo-Json -Depth 10)
 ```
 
+Fetch the AgentBridge activity details for an agent response:
+
+```powershell
+$response = Invoke-WebRequest `
+  -Uri "http://127.0.0.1:5320/v1/chat/completions" `
+  -Method Post `
+  -ContentType "application/json" `
+  -Body (@{
+    model = "agentbridge-agent"
+    messages = @(
+      @{ role = "user"; content = "Inspect this workspace and summarize the PowerShell scripts. Do not edit files." }
+    )
+    stream = $false
+  } | ConvertTo-Json -Depth 10)
+
+$conversationId = $response.Headers["X-AgentBridge-Conversation"]
+Invoke-RestMethod -Uri "http://127.0.0.1:5320/v1/agentbridge/conversations/$conversationId"
+```
+
 Use agent mode with streaming:
 
 ```powershell
@@ -143,3 +164,4 @@ Invoke-RestMethod `
 - Aider can use raw proxy mode when it needs a simple OpenAI-compatible auth/API shim.
 - `agentbridge-agent` supports OpenAI-style server-sent event streaming. It currently streams the final answer in chunks after the agent run completes.
 - Raw proxy mode forwards upstream streaming responses when clients send `stream=true`.
+- Agent mode adds AgentBridge metadata to non-streaming responses and the final streaming chunk. Use `/v1/agentbridge/conversations/{conversation_id}` to inspect tool calls without changing the chat text.

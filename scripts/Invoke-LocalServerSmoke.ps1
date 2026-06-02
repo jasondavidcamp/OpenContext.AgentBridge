@@ -134,7 +134,7 @@ try {
         ConvertTo-Json -Depth 10
 
     Write-Section "Agent Mode"
-    Invoke-RestMethod `
+    $agentResponse = Invoke-WebRequest `
         -Uri "$serverBase/v1/chat/completions" `
         -Method Post `
         -ContentType "application/json" `
@@ -144,8 +144,26 @@ try {
                 @{ role = "user"; content = "Only inspect examples/powershell-sandbox and return a concise summary. Do not edit files." }
             )
             stream = $false
-        } | ConvertTo-Json -Depth 10) |
-        ConvertTo-Json -Depth 10
+        } | ConvertTo-Json -Depth 10)
+    $agentCompletion = $agentResponse.Content | ConvertFrom-Json
+    $agentCompletion | ConvertTo-Json -Depth 10
+
+    $conversationId = $agentResponse.Headers["X-AgentBridge-Conversation"]
+    if (-not $conversationId) {
+        throw "Agent mode response did not include X-AgentBridge-Conversation."
+    }
+
+    if ($agentCompletion.agentbridge.conversation_id -ne $conversationId) {
+        throw "Agent mode metadata conversation id did not match the response header."
+    }
+
+    Write-Section "Agent Conversation Details"
+    $conversationDetails = Invoke-RestMethod -Uri "$serverBase/v1/agentbridge/conversations/$conversationId"
+    $conversationDetails | ConvertTo-Json -Depth 10
+
+    if ($conversationDetails.agentbridge.conversation_id -ne $conversationId) {
+        throw "Conversation details metadata did not match the requested conversation id."
+    }
 
     Write-Section "Agent Mode Streaming"
     $streamResponse = Invoke-WebRequest `
@@ -166,6 +184,10 @@ try {
 
     if (-not ($streamResponse.Content -match "data: \[DONE\]")) {
         throw "Streaming response did not include the final [DONE] marker."
+    }
+
+    if (-not ($streamResponse.Content -match '"agentbridge"')) {
+        throw "Streaming response did not include AgentBridge metadata."
     }
 
     $streamResponse.Content -split "\r?\n" |
