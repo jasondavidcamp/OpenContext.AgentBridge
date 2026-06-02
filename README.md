@@ -184,6 +184,12 @@ $env:AGENTBRIDGE_OPENAI_MODEL = "gemini-2.5-flash"
 $env:AGENTBRIDGE_OPENAI_API_KEY = $env:AGENTBRIDGE_GEMINI_API_KEY
 ```
 
+For one tiny live server canary through that endpoint:
+
+```powershell
+.\scripts\Invoke-GeminiServerCanary.ps1
+```
+
 Workspace configuration is stored at `.agentbridge/config.json`. Effective configuration is resolved in this order: CLI flags, environment variables, workspace config, defaults.
 
 Ask stores the conversation in `.agentbridge/agentbridge.db`:

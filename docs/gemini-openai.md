@@ -23,6 +23,14 @@ The `gemini-openai` provider name is an AgentBridge alias for `openai-compatible
 
 ## Diagnostics
 
+For the cheapest live server canary, run one tiny chat completion through AgentBridge Server to Gemini's OpenAI-compatible endpoint:
+
+```powershell
+.\scripts\Invoke-GeminiServerCanary.ps1
+```
+
+This starts the local server, sends one low-token raw-proxy request, validates the exact response text, and stops the server. Add `-IncludeAgentMode` when you intentionally want to spend a few more requests to test the full workspace-aware agent loop against live Gemini.
+
 ```powershell
 dotnet run --project src/OpenContext.AgentBridge.Cli -- models list . --provider gemini-openai --endpoint "https://generativelanguage.googleapis.com/v1beta/openai/" --api-key "$env:AGENTBRIDGE_GEMINI_API_KEY"
 ```
