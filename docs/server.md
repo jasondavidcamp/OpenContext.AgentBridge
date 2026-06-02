@@ -59,6 +59,14 @@ For a no-cost local regression that starts the simulator upstream and tests both
 .\scripts\Invoke-LocalServerSmoke.ps1
 ```
 
+For a live Gemini regression through Gemini's OpenAI-compatible endpoint:
+
+```powershell
+.\scripts\Invoke-GeminiServerSmoke.ps1
+```
+
+The Gemini smoke keeps prompts small, disables AgentBridge traffic logging, and supports `-SkipRawProxy` or `-SkipAgentMode` when you only want to test one path.
+
 List models:
 
 ```powershell
