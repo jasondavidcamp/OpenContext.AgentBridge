@@ -773,6 +773,7 @@ internal static class ProgramMain
             }
         }
 
+        var toolChangedFiles = ToolChangedFileExtractor.Extract(result.ToolCalls);
         var gitStatus = await executor.RunAsync(
             workspace,
             CommandRequest.Create("git", new[] { "status", "--short", "--", "." }, TimeSpan.FromSeconds(30)));
@@ -789,6 +790,36 @@ internal static class ProgramMain
         else if (gitStatus.ExitCode == 0)
         {
             Console.WriteLine("Changed files: none");
+            WriteToolChangedFiles(toolChangedFiles);
+        }
+        else
+        {
+            if (toolChangedFiles.Count > 0)
+            {
+                Console.WriteLine("Changed files (tool-reported):");
+                foreach (var path in toolChangedFiles)
+                {
+                    Console.WriteLine($"  {path}");
+                }
+            }
+            else
+            {
+                Console.WriteLine("Changed files: unavailable (git status failed)");
+            }
+        }
+    }
+
+    private static void WriteToolChangedFiles(IReadOnlyList<string> changedFiles)
+    {
+        if (changedFiles.Count == 0)
+        {
+            return;
+        }
+
+        Console.WriteLine("Files touched by tools:");
+        foreach (var path in changedFiles)
+        {
+            Console.WriteLine($"  {path}");
         }
     }
 
