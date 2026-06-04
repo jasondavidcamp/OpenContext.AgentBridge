@@ -140,7 +140,7 @@ Cline already owns codebase search, file reads, edits, command execution, approv
 Docker canary:
 
 ```powershell
-.\scripts\Invoke-ClineGatewayCanary.ps1
+.\scripts\Invoke-ClineSplitProxyCanary.ps1
 ```
 
 Manual settings:
@@ -153,7 +153,7 @@ Manual settings:
 
 If the upstream endpoint only accepts plain chat messages and drops tool definitions, Cline raw proxy mode will not be fully agentic. In that case, use `agentbridge-agent` so AgentBridge owns tool execution.
 
-See [cline-docker.md](cline-docker.md) for the Docker canary.
+See [cline-docker.md](cline-docker.md) for the split Docker canary and the optional language-runtime canary.
 
 ## Aider
 
@@ -258,7 +258,7 @@ Use this order to reduce slow handoff loops:
 4. Open WebUI simulator smoke: `.\scripts\Invoke-OpenWebUiSmoke.ps1 -UseSimulator`
 5. Live Gemini canary: `.\scripts\Invoke-GeminiServerCanary.ps1`
 6. Live Gemini agent canary, only when needed: `.\scripts\Invoke-GeminiServerCanary.ps1 -IncludeAgentMode`
-7. Cline gateway canary: `.\scripts\Invoke-ClineGatewayCanary.ps1 -Endpoint "https://gateway.example/v1" -Model "<model-id>"`
+7. Cline split proxy canary: `.\scripts\Invoke-ClineSplitProxyCanary.ps1 -Endpoint "https://gateway.example/v1" -Model "<model-id>"`
 8. Aider gateway canary: `.\scripts\Invoke-AiderGatewayCanary.ps1 -Endpoint "https://gateway.example/v1" -Model "<model-id>"`
 9. Restricted-environment packet: [constrained-environment-test-packet.md](constrained-environment-test-packet.md)
 

@@ -1,7 +1,8 @@
 [CmdletBinding(PositionalBinding = $false)]
 param(
     [string]$Workspace = (Get-Location).Path,
-    [string]$Image = "opencontext-agentbridge-cline-dotnet:latest",
+    [string]$Image = "opencontext-agentbridge-cline:latest",
+    [string]$Network,
     [string]$Model,
     [string]$OpenAiApiBase,
     [string]$ApiKey = "agentbridge-local",
@@ -133,25 +134,33 @@ exec cline \
   "$CLINE_MESSAGE"
 '@
 
-    docker run --rm `
-        -e CLINE_NO_OPEN_BROWSER=1 `
-        -e CLINE_OPENAI_API_BASE `
-        -e CLINE_OPENAI_API_KEY `
-        -e CLINE_MODEL `
-        -e CLINE_MESSAGE `
-        -e CLINE_TIMEOUT_SECONDS `
-        -e CLINE_THINKING `
-        -e CLINE_JSON_FLAG `
-        -e DOTNET_CLI_HOME=/tmp/agentbridge-dotnet `
-        -e DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 `
-        -e HOME=/tmp/agentbridge-home `
-        -e NUGET_PACKAGES=/tmp/agentbridge-nuget/packages `
-        -e XDG_DATA_HOME=/tmp/agentbridge-xdg `
-        -v "$($resolvedWorkspace.Path):/workspace" `
-        -w /workspace `
-        --entrypoint bash `
-        $Image `
-        -lc $script
+    $dockerArgs = @(
+        "run",
+        "--rm"
+    )
+    if (-not [string]::IsNullOrWhiteSpace($Network)) {
+        $dockerArgs += @("--network", $Network)
+    }
+
+    $dockerArgs += @(
+        "-e", "CLINE_NO_OPEN_BROWSER=1",
+        "-e", "CLINE_OPENAI_API_BASE",
+        "-e", "CLINE_OPENAI_API_KEY",
+        "-e", "CLINE_MODEL",
+        "-e", "CLINE_MESSAGE",
+        "-e", "CLINE_TIMEOUT_SECONDS",
+        "-e", "CLINE_THINKING",
+        "-e", "CLINE_JSON_FLAG",
+        "-e", "HOME=/tmp/agentbridge-home",
+        "-e", "XDG_DATA_HOME=/tmp/agentbridge-xdg",
+        "-v", "$($resolvedWorkspace.Path):/workspace",
+        "-w", "/workspace",
+        "--entrypoint", "bash",
+        $Image,
+        "-lc", $script
+    )
+
+    docker @dockerArgs
 
     if ($LASTEXITCODE -ne 0) {
         throw "Cline Docker run failed with exit code $LASTEXITCODE."

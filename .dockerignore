@@ -1,0 +1,7 @@
+.agentbridge/
+.git/
+.vs/
+**/bin/
+**/obj/
+**/.aider*
+**/.cline/
