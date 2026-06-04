@@ -1,7 +1,7 @@
 [CmdletBinding(PositionalBinding = $false)]
 param(
     [string]$Workspace = (Get-Location).Path,
-    [string]$Image = "opencontext-agentbridge-cline:latest",
+    [string]$Image = "cline-client:latest",
     [string]$Network,
     [string]$Model,
     [string]$OpenAiApiBase,

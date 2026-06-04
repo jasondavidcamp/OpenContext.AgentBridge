@@ -10,7 +10,7 @@ Cline-only container -> constrained proxy container -> upstream OpenAI-compatibl
 
 Images:
 
-- `opencontext-agentbridge-cline:latest`: Cline client only.
+- `cline-client:latest`: Cline client only.
 - `opencontext-agentbridge-constrained-proxy:latest`: AgentBridge Server running as a constrained OpenAI-compatible proxy.
 
 Run the split canary:

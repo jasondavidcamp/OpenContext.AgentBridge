@@ -4,7 +4,7 @@ param(
     [string]$Model = $(if ($env:AGENTBRIDGE_GATEWAY_MODEL) { $env:AGENTBRIDGE_GATEWAY_MODEL } else { "gemini-2.5-flash" }),
     [string]$ApiKey = $env:AGENTBRIDGE_GATEWAY_API_KEY,
     [int]$ProxyPort = 5382,
-    [string]$ClineImage = "opencontext-agentbridge-cline:latest",
+    [string]$ClineImage = "cline-client:latest",
     [string]$ProxyImage = "opencontext-agentbridge-constrained-proxy:latest",
     [int]$MaxAttempts = 2,
     [switch]$SkipClineImageBuild,
