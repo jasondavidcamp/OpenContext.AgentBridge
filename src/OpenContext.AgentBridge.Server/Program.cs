@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using OpenContext.AgentBridge.Core;
 using OpenContext.AgentBridge.Core.Agents;
@@ -235,14 +236,15 @@ static async Task ProxyRawChatCompletionAsync(
         return;
     }
 
+    var forwardedBody = NormalizeRawChatCompletionBody(body);
     var options = CreateOpenAiCompatibleOptions(workspace, config, null);
     using var upstreamRequest = new HttpRequestMessage(HttpMethod.Post, options.GetChatCompletionsEndpoint())
     {
-        Content = new StringContent(body, Encoding.UTF8, "application/json")
+        Content = new StringContent(forwardedBody, Encoding.UTF8, "application/json")
     };
     ApplyOpenAiCompatibleAuthentication(upstreamRequest, options);
 
-    var streamRequested = TryReadStream(body);
+    var streamRequested = TryReadStream(forwardedBody);
     using var upstreamResponse = await httpClient.SendAsync(
         upstreamRequest,
         HttpCompletionOption.ResponseHeadersRead,
@@ -260,6 +262,40 @@ static async Task ProxyRawChatCompletionAsync(
 
     var responseBody = await upstreamResponse.Content.ReadAsByteArrayAsync(cancellationToken);
     await context.Response.Body.WriteAsync(responseBody, cancellationToken);
+}
+
+static string NormalizeRawChatCompletionBody(string body)
+{
+    var fieldsToStrip = new[]
+    {
+        "thinking",
+        "effort",
+        "reasoningSummary",
+        "reasoning_effort",
+        "stream_options"
+    };
+
+    JsonNode? node;
+    try
+    {
+        node = JsonNode.Parse(body);
+    }
+    catch (JsonException)
+    {
+        return body;
+    }
+
+    if (node is not JsonObject request)
+    {
+        return body;
+    }
+
+    foreach (var propertyName in fieldsToStrip)
+    {
+        request.Remove(propertyName);
+    }
+
+    return request.ToJsonString(AgentBridgeServerJson.Options);
 }
 
 static async Task WriteAgentStreamAsync(

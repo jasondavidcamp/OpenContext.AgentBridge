@@ -56,6 +56,7 @@ Use raw proxy mode when the client is already the agent and only needs an OpenAI
 That boundary keeps AgentBridge thin:
 
 - Open WebUI: usually `agentbridge-agent`
+- Cline: usually raw proxy mode when upstream preserves tool calls
 - Aider: usually raw proxy mode
 - LangGraph: either mode, depending on whether the graph or AgentBridge owns tools
 - scripts and smoke tests: either mode
@@ -129,6 +130,30 @@ Manual settings:
 - Streaming: supported
 
 Use the conversation details endpoint when you need to inspect exactly which tools ran after a UI turn.
+
+## Cline
+
+Recommended mode: raw proxy, when the upstream endpoint preserves OpenAI-compatible tool-call fields.
+
+Cline already owns codebase search, file reads, edits, command execution, approvals, skills, MCP, and session flow. Prefer raw proxy mode so AgentBridge only adapts endpoint/auth details and removes small client-specific request fields that strict endpoints may reject.
+
+Docker canary:
+
+```powershell
+.\scripts\Invoke-ClineGatewayCanary.ps1
+```
+
+Manual settings:
+
+- Provider: OpenAI Compatible
+- Base URL from host: `http://127.0.0.1:5320/v1`
+- Base URL from Docker: `http://host.docker.internal:5320/v1`
+- Model: the upstream model id, such as `gemini-2.5-flash`
+- API key: any placeholder when local server auth is disabled; otherwise use `AGENTBRIDGE_SERVER_API_KEY`
+
+If the upstream endpoint only accepts plain chat messages and drops tool definitions, Cline raw proxy mode will not be fully agentic. In that case, use `agentbridge-agent` so AgentBridge owns tool execution.
+
+See [cline-docker.md](cline-docker.md) for the Docker canary.
 
 ## Aider
 
@@ -233,8 +258,9 @@ Use this order to reduce slow handoff loops:
 4. Open WebUI simulator smoke: `.\scripts\Invoke-OpenWebUiSmoke.ps1 -UseSimulator`
 5. Live Gemini canary: `.\scripts\Invoke-GeminiServerCanary.ps1`
 6. Live Gemini agent canary, only when needed: `.\scripts\Invoke-GeminiServerCanary.ps1 -IncludeAgentMode`
-7. Aider gateway canary: `.\scripts\Invoke-AiderGatewayCanary.ps1 -Endpoint "https://gateway.example/v1" -Model "<model-id>"`
-8. Restricted-environment packet: [constrained-environment-test-packet.md](constrained-environment-test-packet.md)
+7. Cline gateway canary: `.\scripts\Invoke-ClineGatewayCanary.ps1 -Endpoint "https://gateway.example/v1" -Model "<model-id>"`
+8. Aider gateway canary: `.\scripts\Invoke-AiderGatewayCanary.ps1 -Endpoint "https://gateway.example/v1" -Model "<model-id>"`
+9. Restricted-environment packet: [constrained-environment-test-packet.md](constrained-environment-test-packet.md)
 
 ## Current Boundaries
 
